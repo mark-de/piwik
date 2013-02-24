@@ -128,7 +128,8 @@ class Piwik_Sql
 	 */
 	static public function deleteAllRows( $table, $where, $maxRowsPerQuery = 100000, $parameters = array() )
 	{
-		$sql = "DELETE FROM $table $where LIMIT ".(int)$maxRowsPerQuery;
+		$sql = Piwik_Common::isOracle()? "DELETE FROM $table $where AND ROWNUM <= ".(int)$maxRowsPerQuery :
+										"DELETE FROM $table $where LIMIT ".(int)$maxRowsPerQuery ; // Ancud-IT GmbH
 		
 		// delete rows w/ a limit
 		$totalRowsDeleted = 0;
@@ -154,6 +155,19 @@ class Piwik_Sql
 		{
 			return false;
 		}
+		
+		/*
+		 * Ancud-IT GmbH 
+		 * Tables are supposed to be automaticalley optimized by Oracle!
+		 * Do nothing if Oracle database is used!
+		 * @TODO confirm whether Oracle's table optimization really works
+		 */
+		if (Piwik_Common::isOracle())
+		{
+			return true;
+		}
+		
+		
 		if (!is_array($tables))
 		{
 			$tables = array($tables);
@@ -199,10 +213,18 @@ class Piwik_Sql
 	 *
 	 * @param string|array  $tablesToRead   The table or tables to obtain 'read' locks on.
 	 * @param string|array  $tablesToWrite  The table or tables to obtain 'write' locks on.
-	 * @return Zend_Db_Statement
+	 * @return bool|Zend_Db_Statement
 	 */
 	static public function lockTables( $tablesToRead, $tablesToWrite = array() )
 	{
+		/*
+		 * Ancud-IT GmbH 2012
+		 * For now we don't mess with Oracle's built-in locking mechanism
+		 */
+		if (Piwik_Common::isOracle()) {
+			return true;
+		}
+		
 		if (!is_array($tablesToRead))
 		{
 			$tablesToRead = array($tablesToRead);
@@ -223,6 +245,7 @@ class Piwik_Sql
 		}
 		
 		return self::exec("LOCK TABLES ".implode(', ', $lockExprs));
+		
 	}
 
 	/**
@@ -232,7 +255,11 @@ class Piwik_Sql
 	 */
 	static public function unlockAllTables()
 	{
-		return self::exec("UNLOCK TABLES");
+	    /*
+		 * Ancud-IT GmbH 2012
+		 * For now we don't mess with Oracle's built-in locking mechanism
+		 */
+		return Piwik_Common::isOracle()? true : self::exec("UNLOCK TABLES");
 	}
 	
 	/**
@@ -380,11 +407,22 @@ class Piwik_Sql
 	static public function getDbLock( $lockName, $maxRetries = 30 )
 	{
 		/*
+		 * Ancud-IT GmbH 2012
+		 * For now we don't mess with Oracle's built-in locking mechanism
+		 */
+		
+		if (Piwik_Common::isOracle())
+		{
+			return true;
+		}
+		
+		/*
 		 * the server (e.g., shared hosting) may have a low wait timeout
 		 * so instead of a single GET_LOCK() with a 30 second timeout,
 		 * we use a 1 second timeout and loop, to avoid losing our MySQL
 		 * connection
 		 */
+		
 		$sql = 'SELECT GET_LOCK(?, 1)';
 
 		$db = Zend_Registry::get('db');
@@ -397,7 +435,6 @@ class Piwik_Sql
 			}
 			$maxRetries--;
 		}
-		return false;
 	}
 	
 	/**
@@ -408,10 +445,23 @@ class Piwik_Sql
 	 */
 	static public function releaseDbLock( $lockName )
 	{
+		/*
+		 * Ancud-IT GmbH 2012
+		 * For now we don't mess with Oracle's built-in locking mechanism
+		 * @TODO Check whether we might need sth similiar to this for Oracle ...
+		 */
+		
+		if (Piwik_Common::isOracle())
+		{
+			return true;
+		}
+
 		$sql = 'SELECT RELEASE_LOCK(?)';
 
 		$db = Zend_Registry::get('db');
 		return $db->fetchOne($sql, array($lockName)) == '1';
+
+		return true;
 	}
 }
 

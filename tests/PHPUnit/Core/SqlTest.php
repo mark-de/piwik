@@ -12,6 +12,15 @@ class SqlTest extends DatabaseTestCase
 	{
 		parent::setUp();
 		
+		$config = Piwik_Config::getInstance();
+		$adapter = $config->database['adapter'];
+		
+		if ($adapter == 'ORACLE' ) 
+		{
+			return;
+		}
+		
+		
 		// create two myisam tables
 		Piwik_Exec("CREATE TABLE table1 (a INT) ENGINE=MYISAM");
 		Piwik_Exec("CREATE TABLE table2 (b INT) ENGINE=MYISAM");
@@ -32,6 +41,14 @@ class SqlTest extends DatabaseTestCase
      */
     public function testOptimize()
     {
+    	$config = Piwik_Config::getInstance();
+		$adapter = $config->database['adapter'];
+		
+		if ($adapter == 'ORACLE' ) 
+		{
+			return;
+		}
+
     	// make sure optimizing myisam tables works
     	$this->assertTrue(Piwik_OptimizeTables(array('table1', 'table2')) !== false);
     	

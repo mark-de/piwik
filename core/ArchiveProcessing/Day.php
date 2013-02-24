@@ -338,9 +338,24 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 	        
 	        // IF we query Custom Variables scope "page" either: Product SKU, Product Name, 
 	        // then we also query the "Product page view" price which was possibly recorded.
+			// @TODO Ancud-IT GmbH there's no built-in support for this in Oracle (running AVG on varchar fields!)
 	        if(in_array(reset($label), array('custom_var_k3','custom_var_k4','custom_var_k5')))
 	        {
-	        	$select .= ", ".self::getSqlRevenue("AVG(log_link_visit_action.custom_var_v2)")." as `". Piwik_Archive::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED ."`";
+				      $select .= Piwik_Common::isOracle() ? 
+					", ".self::getSqlRevenue("AVG(CASE "
+                    . "WHEN REGEXP_LIKE(log_link_visit_action.custom_var_v2, '.*[[:alpha:]]+.*') "
+                    . "THEN 0 "
+                    . "ELSE CAST(log_link_visit_action.custom_var_v2 AS NUMBER(12,2)) END)") 
+                    . " AS `". Piwik_Archive::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED ."`"
+							  
+							  :
+					   
+					 ", " . self::getSqlRevenue("AVG(log_link_visit_action.custom_var_v2)")
+					. " as `"
+					. Piwik_Archive::INDEX_ECOMMERCE_ITEM_PRICE_VIEWED ."`";
+					  
+					  //  . "WHEN log_link_visit_action.custom_var_v2 = '' OR log_link_visit_action.custom_var_v2 IS NULL "
+						//. "THEN 0 "
 	        }
 	    }
 	    else
@@ -352,7 +367,7 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 		if(!empty($where))
 	    {
 	    	$where = sprintf($where, "log_link_visit_action", "log_link_visit_action");
-	        $where = ' AND '.$where;
+	        $where = ' AND '.$where . " "; // Ancud-IT GmbH added white space
 	    }
 		
 		$pre = ", \n\t\t\t";
@@ -468,8 +483,21 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 		}
 	    else
 	    {
+			/*
+			 * Ancud-IT GmbH 2013:
+			 * if we've got here we must must have come from 
+			 * Piwik_UserSettings::ArchiveDay where
+			 * $label might be several field identifierers
+			 * concatenated by the database concatenation
+			 * operator. Oracle uses "||" for text concatenation
+			 * We must expand the 
+			 * group by expression, if several fields are selected 
+			 */
+			
 	        $select = $label . " AS label ";
-	        $groupBy = 'label';
+			
+			$groupBy = Piwik_Common::isOracle() ?
+				$this->getGroupByExpression( $label )	: 'label';
 	    }
 	    
 	    if(!empty($where))
@@ -538,6 +566,22 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 		return $this->db->query($query['sql'], $query['bind']);
 	}
 
+	
+	private function getGroupByExpression( $label )
+	{
+		$selectGroup = explode("||';'||", trim($label));
+		$groupBy= '';
+
+		$i = 0;
+		foreach( $selectGroup as $val)
+		{
+			$groupBy .= $i > 0 ? ', '.$val : $val;
+			$i++;
+		}
+		
+		return $groupBy;
+	}
+	
 	/**
 	 * @see queryVisitsByDimension() Similar to this function,
 	 * but queries metrics for the requested dimensions,
@@ -567,7 +611,10 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 	    else
 	    {
 	        $select = $label . " AS label, ";
-	        $groupBy = 'label';
+			// $groupBy = 'label';
+			// @TODO Ancud-IT GmbH expanded $groupBy-String to include all fields
+			$groupBy = Piwik_Common::isOracle() ?
+				$this->getGroupByExpression( $label )	: 'label';
 	    }
 	    if(!empty($aggregateLabels))
 	    {
@@ -585,7 +632,7 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 		    		self::getSqlRevenue('SUM(log_conversion.revenue_discount)')." as `". Piwik_Archive::INDEX_GOAL_ECOMMERCE_REVENUE_DISCOUNT ."`,".
 		    		"SUM(log_conversion.items) as `". Piwik_Archive::INDEX_GOAL_ECOMMERCE_ITEMS ."`, ";
 		    		
-	    $groupBy = !empty($groupBy) ? ", $groupBy" : '';
+	    $groupBy = !empty($groupBy) ? ", $groupBy " : ''; // Ancud-IT GmbH white space added
 	    
 	    $select = "$select
 				log_conversion.idgoal,
@@ -617,14 +664,26 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 	 */
 	public function queryEcommerceItems($field)
 	{
+		// Ancud-IT   see Piwik_Tracker_GoalManager->recordEcommerceGoal($goal, $visitorInformation)
+		
+		$caseExpression = Piwik_Common::isOracle()? " LIKE 'cartupdate%' " : " = '0' ";
+		
+		$ecommerceType = "case when idorder" 
+						.	$caseExpression 
+						.   "then "
+						.	Piwik_Tracker_GoalManager::IDGOAL_CART
+						." else " 
+						.	Piwik_Tracker_GoalManager::IDGOAL_ORDER
+						." end";
+		
 		$query = "SELECT
-						name as label,
+						name as `label`,
 						".self::getSqlRevenue('SUM(quantity * price)')." as `". Piwik_Archive::INDEX_ECOMMERCE_ITEM_REVENUE ."`,
 						".self::getSqlRevenue('SUM(quantity)')." as `". Piwik_Archive::INDEX_ECOMMERCE_ITEM_QUANTITY ."`,
 						".self::getSqlRevenue('SUM(price)')." as `". Piwik_Archive::INDEX_ECOMMERCE_ITEM_PRICE ."`,
 						count(distinct idorder) as `". Piwik_Archive::INDEX_ECOMMERCE_ORDERS."`,
-						count(idvisit) as `". Piwik_Archive::INDEX_NB_VISITS."`,
-						case idorder when '0' then ".Piwik_Tracker_GoalManager::IDGOAL_CART." else ".Piwik_Tracker_GoalManager::IDGOAL_ORDER." end as ecommerceType
+						count(distinct idvisit) as `". Piwik_Archive::INDEX_NB_VISITS."`,
+						$ecommerceType as `ecommerceType`
 			 	FROM ".Piwik_Common::prefixTable('log_conversion_item')."
 			 		LEFT JOIN ".Piwik_Common::prefixTable('log_action')."
 			 		ON $field = idaction
@@ -632,13 +691,15 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 						AND server_time <= ?
 			 			AND idsite = ?
 			 			AND deleted = 0
-			 	GROUP BY ecommerceType, $field
+			 	GROUP BY name, $ecommerceType, $field
 				ORDER BY NULL";
 						
 		$bind = array( $this->getStartDatetimeUTC(),
                        $this->getEndDatetimeUTC(),
                        $this->idsite
         );
+		
+		// var_dump($query); Ancud-IT GmbH
 		$query = $this->db->query($query, $bind);
 		return $query;
 	}

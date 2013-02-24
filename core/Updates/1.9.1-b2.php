@@ -17,8 +17,23 @@ class Piwik_Updates_1_9_1_b2 extends Piwik_Updates
 {
 	static function getSql($schema = 'Myisam')
 	{
+		if (Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle)
+		{
+			$col = 'COLUMN';
+			$error = 904;
+		}
+		else
+		{
+			$col = '';
+			$error = 1091;
+		}
+		
 		return array(
-			'ALTER TABLE '.Piwik_Common::prefixTable('site'). " DROP `feedburnerName`" => 1091
+			'ALTER TABLE '
+			.	Piwik_Common::prefixTable('site')
+			.	" DROP " 
+			.	$col 
+			.	" `feedburnerName`" => $error
 		);
 	}
 	

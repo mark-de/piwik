@@ -100,10 +100,26 @@ abstract class Piwik_Tracker_Db
 			$time = $info['sum_time_ms'];
 			$count = $info['count'];
 
-			$queryProfiling = "INSERT INTO ".Piwik_Common::prefixTable('log_profiling')."
+			$queryProfiling = Piwik_Common::isOracle() ? 
+						"MERGE INTO ".Piwik_Common::prefixTable('log_profiling') .
+						" TARGET" .
+						" USING (SELECT ? AS QUERY, $count AS COUNT, $time AS SUM_TIME_MS".
+						" FROM DUAL) SOURCE" .
+						" ON (TARGET.QUERY = SOURCE.QUERY)".
+						" WHEN MATCHED THEN".
+							" UPDATE SET COUNT = COUNT + $count," .
+							" SUM_TIME_MS = SUM_TIME_MS + $time" .
+						" WHEN NOT MATCHED THEN" .
+							" INSERT (TARGET.QUERY, TARGET.COUNT, TARGET.SUM_TIME_MS)" .
+							" VALUES (SOURCE.QUERY, SOURCE.COUNT, SOURCE.SUM_TIME_MS)"   
+							
+						:
+						
+						"INSERT INTO ".Piwik_Common::prefixTable('log_profiling') ."
 						(query,count,sum_time_ms) VALUES (?,$count,$time)
 						ON DUPLICATE KEY 
 							UPDATE count=count+$count,sum_time_ms=sum_time_ms+$time";
+			
 			$this->query($queryProfiling,array($query));
 		}
 		

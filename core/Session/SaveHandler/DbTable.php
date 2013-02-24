@@ -92,6 +92,8 @@ class Piwik_Session_SaveHandler_DbTable implements Zend_Session_SaveHandler_Inte
 	 */
 	public function write($id, $data)
 	{
+		if( !Piwik_Common::isOracle() ) 
+		{ 
 		$sql = 'INSERT INTO '.$this->config['name']
 			.' ('.$this->config['primary'].','
 				.$this->config['modifiedColumn'].','
@@ -103,7 +105,35 @@ class Piwik_Session_SaveHandler_DbTable implements Zend_Session_SaveHandler_Inte
 				.$this->config['lifetimeColumn'].' = ?,'
 				.$this->config['dataColumn'].' = ?';
 
-		$this->config['db']->query($sql, array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data));
+			$aBind = array($id, time(), $this->maxLifetime, $data, time(), $this->maxLifetime, $data);
+		}
+		else
+		{
+			$idCol = $this->config['primary'];
+			$modCol = $this->config['modifiedColumn'];
+			$lifeCol = $this->config['lifetimeColumn'];
+			$dataCol = $this->config['dataColumn'];
+			
+			$tableName = $this->config['name'];
+			
+			$sql = "MERGE INTO " . $tableName . " TARGET USING " 
+				.	"(SELECT '" . $id . "' AS " . $idCol .", "
+				.	time() . " AS " . $modCol.", "
+				.	$this->maxLifetime . " AS " . $lifeCol . ", '"
+				.	$data . "' AS " . $dataCol . " FROM DUAL) "
+				.	"SOURCE ON (TARGET." . $idCol . " = SOURCE." . $idCol . ") " 
+				.	"WHEN MATCHED THEN " 
+				.	"UPDATE SET TARGET."	.	$modCol		. " = SOURCE." . $modCol . ", "
+				.	"TARGET."			.	$lifeCol	. " = SOURCE." . $lifeCol . ", "
+				.	"TARGET."			.	$dataCol	. " = SOURCE." . $dataCol . " " 
+				.	"WHEN NOT MATCHED THEN INSERT ( TARGET.". $idCol .", TARGET."
+				.	$modCol . ", TARGET.". $lifeCol
+				.	", TARGET." . $dataCol . " ) VALUES ( ?, ?, ?, ?)" ;
+			
+			$aBind = array($id, time(), $this->maxLifetime, $data);
+		}
+		
+		$this->config['db']->query( $sql, $aBind );
 
 		return true;
 	}

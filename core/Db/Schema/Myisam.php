@@ -52,7 +52,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 	 * @return array  array of strings containing SQL
 	 */
 	public function getTablesCreateSql()
-	{
+	{   // Ancud-IT GmbH  log-conversion field "url" not null constraint removed
 		$config = Piwik_Config::getInstance();
 		$prefixTables = $config->database['tables_prefix'];
 		$tables = array(
@@ -83,13 +83,13 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
   						  ts_created TIMESTAMP NULL,
   						  ecommerce TINYINT DEFAULT 0,
   						  sitesearch TINYINT DEFAULT 1,
-  						  sitesearch_keyword_parameters TEXT NOT NULL,
-  						  sitesearch_category_parameters TEXT NOT NULL,
+  						  sitesearch_keyword_parameters TEXT,
+  						  sitesearch_category_parameters TEXT,
   						  timezone VARCHAR( 50 ) NOT NULL,
   						  currency CHAR( 3 ) NOT NULL,
-  						  excluded_ips TEXT NOT NULL,
-  						  excluded_parameters TEXT NOT NULL,
-  						  `group` VARCHAR(250) NOT NULL, 
+  						  excluded_ips TEXT,
+  						  excluded_parameters TEXT,
+  						  `group` VARCHAR(250), 
 						  PRIMARY KEY(idsite)
 						)  DEFAULT CHARSET=utf8
 			",
@@ -106,8 +106,8 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 							  `idgoal` int(11) NOT NULL,
 							  `name` varchar(50) NOT NULL,
 							  `match_attribute` varchar(20) NOT NULL,
-							  `pattern` varchar(255) NOT NULL,
-							  `pattern_type` varchar(10) NOT NULL,
+							  `pattern` varchar(255),
+							  `pattern_type` varchar(10),
 							  `case_sensitive` tinyint(4) NOT NULL,
 							  `allow_multiple` tinyint(4) NOT NULL,
 							  `revenue` float NOT NULL,
@@ -118,11 +118,12 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 
 			'logger_message' => "CREATE TABLE {$prefixTables}logger_message (
 									  idlogger_message INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-									  timestamp TIMESTAMP NULL,
+									  atimestamp TIMESTAMP NULL,
 									  message TEXT NULL,
 									  PRIMARY KEY(idlogger_message)
 									)  DEFAULT CHARSET=utf8
 			",
+					// rename timestamp to atimestamp workaround Oracle10g-bug !
 
 			'logger_api_call' => "CREATE TABLE {$prefixTables}logger_api_call (
 									  idlogger_api_call INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -132,7 +133,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 									  parameter_values TEXT NULL,
 									  execution_time FLOAT NULL,
 									  caller_ip VARBINARY(16) NOT NULL,
-									  timestamp TIMESTAMP NULL,
+									  atimestamp TIMESTAMP NULL,
 									  returned_value TEXT NULL,
 									  PRIMARY KEY(idlogger_api_call)
 									)  DEFAULT CHARSET=utf8
@@ -140,7 +141,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 
 			'logger_error' => "CREATE TABLE {$prefixTables}logger_error (
 									  idlogger_error INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-									  timestamp TIMESTAMP NULL,
+									  atimestamp TIMESTAMP NULL,
 									  message TEXT NULL,
 									  errno INTEGER UNSIGNED NULL,
 									  errline INTEGER UNSIGNED NULL,
@@ -152,7 +153,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 
 			'logger_exception' => "CREATE TABLE {$prefixTables}logger_exception (
 									  idlogger_exception INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
-									  timestamp TIMESTAMP NULL,
+									  atimestamp TIMESTAMP NULL,
 									  message TEXT NULL,
 									  errno INTEGER UNSIGNED NULL,
 									  errline INTEGER UNSIGNED NULL,
@@ -196,7 +197,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 							  visit_goal_buyer TINYINT(1) NOT NULL, 
 							  referer_type TINYINT(1) UNSIGNED NULL,
 							  referer_name VARCHAR(70) NULL,
-							  referer_url TEXT NOT NULL,
+							  referer_url TEXT,
 							  referer_keyword VARCHAR(255) NULL,
 							  config_id BINARY(8) NOT NULL,
 							  config_os CHAR(3) NOT NULL,
@@ -214,7 +215,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 							  config_silverlight TINYINT(1) NOT NULL,
 							  config_cookie TINYINT(1) NOT NULL,
 							  location_ip VARBINARY(16) NOT NULL,
-							  location_browser_lang VARCHAR(20) NOT NULL,
+							  location_browser_lang VARCHAR(20),
 							  location_country CHAR(3) NOT NULL,
 							  location_region char(2) DEFAULT NULL,
 							  location_city varchar(255) DEFAULT NULL,
@@ -280,7 +281,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 									  location_city varchar(255) DEFAULT NULL,
 									  location_latitude float(10, 6) DEFAULT NULL,
 									  location_longitude float(10, 6) DEFAULT NULL,
-									  url text NOT NULL,
+									  url text,
 									  idgoal int(10) NOT NULL,
 									  buster int unsigned NOT NULL,
 									  

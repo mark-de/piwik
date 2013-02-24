@@ -38,6 +38,14 @@ class Piwik_Common
 /*
  * Database
  */
+	/**
+	 * @return bool 
+	 */
+	public static function isOracle()
+	{
+		$config = Piwik_Config::getInstance();
+		return isset($config->database['dbora']);
+	}
 
 	/**
 	 * Hashes a string into an integer which should be very low collision risks
@@ -1051,7 +1059,8 @@ class Piwik_Common
 	 */
 	static public function hex2bin($str)
 	{
-		return pack("H*" , $str);
+		return self::isOracle() ? $str : pack("H*" , $str) ;
+		// Ancud-IT GmbH
 	}
 
 	/**
@@ -1069,8 +1078,8 @@ class Piwik_Common
 	 */
 	static public function convertVisitorIdToBin($id)
 	{
-		if(strlen($id) !== Piwik_Tracker::LENGTH_HEX_ID_STRING
-			|| @bin2hex(self::hex2bin($id)) != $id)
+		if(strlen($id) !== Piwik_Tracker::LENGTH_HEX_ID_STRING )
+			// || @bin2hex(self::hex2bin($id)) != $id)		Ancud-IT GmbH: We don't need it
 		{
 			throw new Exception("visitorId is expected to be a ".Piwik_Tracker::LENGTH_HEX_ID_STRING." hex char string");
 		}

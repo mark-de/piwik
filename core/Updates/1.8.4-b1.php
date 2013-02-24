@@ -21,6 +21,143 @@ class Piwik_Updates_1_8_4_b1 extends Piwik_Updates
 		return true;
 	}
 	
+    static function getOracleSQL( $action, $duplicates, $visitAction, $conversion, $visit  )
+    {
+        $sql = array();
+        
+        $sql[ "DROP TABLE " . $duplicates ] = 942;
+        
+        $sql[ " ALTER TABLE " . $action . " ADD URL_PREFIX NUMBER(3,0)"] = 1430;
+        
+        $sql[ " UPDATE " . $action 
+            .   " SET "
+            .   "URL_PREFIX = "
+                .   "CASE "
+                    .   "WHEN SUBSTR(NAME, 1, 11) = 'http://www.' THEN 1 "
+                    .   "WHEN SUBSTR(NAME, 1, 7) = 'http://' THEN 0 "
+                    .   "WHEN SUBSTR(NAME, 1, 12) = 'https://www.' THEN 3 "
+                    .   "WHEN SUBSTR(NAME, 1, 8) = 'https://' THEN 2 "
+                .   "END WHERE URL_PREFIX IS NULL AND TYPE = 1" ] = false;
+        
+        $sql[ " UPDATE " . $action 
+            .   " SET "
+            .   "NAME = "
+                .   "CASE "
+                    .   "WHEN URL_PREFIX = 0 THEN SUBSTR(name, 8) "
+                    .   "WHEN URL_PREFIX = 1 THEN SUBSTR(name, 12) "
+                    .   "WHEN URL_PREFIX = 2 THEN SUBSTR(name, 9) "
+                    .   "WHEN URL_PREFIX = 3 THEN SUBSTR(name, 13) "
+                .   "END, "
+            .   "HASH = ORA_HASH(NAME) "
+            .   "WHERE "
+            .   "TYPE = 1 "
+            .   "AND URL_PREFIX IS NOT NULL"] = false;
+        
+        
+        
+        $sql[ "CREATE TABLE " . $duplicates 
+            . " ("
+            .   " BEFORE NUMBER(11,0) NOT NULL, "
+            .   " AFTER NUMBER(11,0) NOT NULL, "
+            .   " CONSTRAINT MAINKEY PRIMARY KEY (BEFORE)"
+            .   ")"] = false;
+         
+        $sql[ "INSERT INTO " . $duplicates 
+            .   "("
+            .   " SELECT "
+                .   "ACTION.IDACTION BEFORE, "
+                .   "CANONICAL.IDACTION AFTER "
+            .   " FROM "
+                .   "("
+                    .   "SELECT NAME, HASH, MIN(IDACTION) IDACTION "
+                        .   "FROM "
+                            .   $action . " ACTION_CANONICAL_BASE "
+                        .   "WHERE "
+                            .   "TYPE = 1 AND URL_PREFIX IS NOT NULL "
+                        .   "GROUP BY NAME, HASH "
+                        .   "HAVING COUNT(IDACTION) > 1"
+                .   ") CANONICAL "
+                .   "LEFT OUTER JOIN "
+                    .   $action
+                    .   " ACTION "
+                    .   "ON (action.type = 1 AND canonical.hash = action.hash) "
+					.   "AND canonical.name = action.name "
+					.   "AND canonical.idaction != action.idaction "
+            .   ")" ] = false;
+        
+ 
+        $sql[ "   UPDATE "
+				. "(SELECT l.idaction_url idaction_url, d.after after "
+                . "FROM " . $visitAction . " l "
+				. "LEFT JOIN "
+				.  $duplicates . " d "
+				. "ON l.idaction_url = d.before "
+                . ") "
+                . "SET idaction_url = after "
+                . "WHERE after IS NOT NULL"] = false;
+        
+        
+        $sql[ "   UPDATE "
+				. "(SELECT l.idaction_url_ref idaction_url_ref, d.after after "
+                . "FROM " . $visitAction . " l "
+				. "LEFT JOIN "
+				.  $duplicates . " d "
+				. "ON l.idaction_url = d.before "
+                . ") "
+                . "SET idaction_url_ref = after "
+                . "WHERE after IS NOT NULL"] = false;
+                
+                
+        $sql[ "   UPDATE "
+				. "(SELECT l.idaction_url idaction_url, d.after after "
+                . "FROM " . $conversion . " l "
+				. "LEFT JOIN "
+				.  $duplicates . " d "
+				. "ON l.idaction_url = d.before "
+                . ") "
+                . "SET idaction_url = after "
+                . "WHERE after IS NOT NULL"] = false;
+        
+        $sql[ "   UPDATE "
+				. "(SELECT l.visit_entry_idaction_url visit_entry_idaction_url, d.after after "
+                . "FROM " . $visit . " l "
+				. "LEFT JOIN "
+				.  $duplicates . " d "
+				. "ON l.visit_entry_idaction_url = d.before "
+                . ") "
+                . "SET visit_entry_idaction_url = after "
+                . "WHERE after IS NOT NULL"] = false;
+        
+        
+        $sql[ "   UPDATE "
+				.   "(SELECT l.visit_exit_idaction_url visit_exit_idaction_url, d.after after "
+                .   "FROM " . $visit . " l "
+				.   "LEFT JOIN "
+				.   $duplicates . " d "
+				.   "ON l.visit_exit_idaction_url = d.before "
+                .   ") "
+                .   "SET visit_exit_idaction_url = after "
+                .   "WHERE after IS NOT NULL"] = false;
+          
+        $sql[ " DELETE FROM  "
+                .   "( "
+                .   "SELECT a.idaction idaction, d.after after "
+                .   "FROM "
+                .   $action . " a "
+                .   " LEFT JOIN "
+                .   $duplicates . " d "
+                .   "ON a.idaction = d.before "
+                .   ") "
+                .   "WHERE after IS NOT NULL"] = false;
+        
+        $sql[ "DROP TABLE " . $duplicates] = 942;
+        
+		$sql[ "ALTER SEQUENCE " .  Piwik_Common::prefixTable('site') . "_SEQ NOCACHE"] = false;
+        
+        return $sql;
+        
+    }
+    
 	static function getSql($schema = 'Myisam')
 	{
 		$action = Piwik_Common::prefixTable('log_action');
@@ -29,6 +166,12 @@ class Piwik_Updates_1_8_4_b1 extends Piwik_Updates
 		$conversion = Piwik_Common::prefixTable('log_conversion');
 		$visit = Piwik_Common::prefixTable('log_visit');
 		
+        if( Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle) 
+        {
+            return self::getOracleSQL( $action, $duplicates, $visitAction, $conversion, $visit );
+        }
+            
+        
 		return array(
 			
 		    // add url_prefix column

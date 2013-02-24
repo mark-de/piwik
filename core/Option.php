@@ -68,8 +68,9 @@ class Piwik_Option
 		{
 			return $this->all[$name];
 		}
+		$qu = Piwik_Common::isOracle() ? '' : '`';
 		$value = Piwik_FetchOne( 'SELECT option_value '. 
-							'FROM `' . Piwik_Common::prefixTable('option') . '`'.
+							'FROM ' . $qu . Piwik_Common::prefixTable('option') . $qu .
 							'WHERE option_name = ?', $name);
 		if($value === false)
 		{
@@ -89,10 +90,35 @@ class Piwik_Option
 	public function set($name, $value, $autoload = 0)
 	{
 		$autoload = (int)$autoload;
-		Piwik_Query('INSERT INTO `'. Piwik_Common::prefixTable('option') . '` (option_name, option_value, autoload) '.
+		
+		/**
+		 * IMPORTANT !
+		 * Ancud-IT GmbH: if this statements fails, the installer can get a rather unspecific errormessage  (timezone not valid)
+		 */
+		if ( !Piwik_Common::isOracle() )
+		{
+			$sql = 'INSERT INTO `'. Piwik_Common::prefixTable('option') . '` (option_name, option_value, autoload) '.
 					' VALUES (?, ?, ?) '.
-					' ON DUPLICATE KEY UPDATE option_value = ?', 
-					array($name, $value, $autoload, $value));
+					' ON DUPLICATE KEY UPDATE option_value = ?';
+			
+			$bind = array($name, $value, $autoload, $value);
+			
+			Piwik_Query($sql, $bind);		
+			
+		} else {
+			
+			$sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " . 
+				"(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"
+							. $autoload . "' AS autoload FROM dual) " .
+				"SOURCE ON (target.option_name = SOURCE.option_name) " .
+				"WHEN MATCHED THEN " .
+					"UPDATE SET option_value = '" . $value . "' " .
+				"WHEN NOT MATCHED THEN INSERT ( target.option_name, target.option_value, target.autoload ) " .
+					"VALUES ( SOURCE.option_name, SOURCE.option_value, SOURCE.autoload )" ;
+			
+			Piwik_Query($sql);		
+		}
+		
 		$this->all[$name] = $value;
 	}
 
@@ -104,7 +130,9 @@ class Piwik_Option
 	 */
 	public function delete($name, $value = null)
 	{
-		$sql = 'DELETE FROM `'. Piwik_Common::prefixTable('option') . '` WHERE option_name = ?';
+		$sql = Piwik_Common::isOracle() ?
+				'DELETE FROM '. Piwik_Common::prefixTable('option') . ' WHERE option_name = ?' :
+				'DELETE FROM `'. Piwik_Common::prefixTable('option') . '` WHERE option_name = ?';
 		$bind[] = $name;
 
 		if(isset($value))
@@ -127,7 +155,10 @@ class Piwik_Option
 	 */
 	public function deleteLike($name, $value = null)
 	{
-		$sql = 'DELETE FROM `'. Piwik_Common::prefixTable('option') . '` WHERE option_name LIKE ?';
+		$sql = Piwik_Common::isOracle() ? 
+				"DELETE FROM ". Piwik_Common::prefixTable("option") . " WHERE option_name LIKE ? ESCAPE '\'" :
+				'DELETE FROM `'. Piwik_Common::prefixTable('option') . '` WHERE option_name LIKE ?';
+		// ESCAPE key word necessary for Oracle // Ancud-IT GmbH
 		$bind[] = $name;
 
 		if(isset($value))
@@ -152,9 +183,9 @@ class Piwik_Option
 		{
 			return;
 		}
-
+		$qu = Piwik_Common::isOracle() ? '' : '`';
 		$all = Piwik_FetchAll('SELECT option_value, option_name
-								FROM `'. Piwik_Common::prefixTable('option') . '` 
+								FROM '. $qu . Piwik_Common::prefixTable('option') . $qu . ' 
 								WHERE autoload = 1');
 		foreach($all as $option)
 		{

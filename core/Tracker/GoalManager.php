@@ -399,6 +399,41 @@ class Piwik_Tracker_GoalManager
 		{
 			$goal['buster'] = 0;
 			$goal['idgoal'] = self::IDGOAL_CART;
+			
+			/*
+			 * Ancud-IT
+			 * 
+			 * In table "log_conversion" two columns, "idsite" and "idorder",
+			 * form a combined unique constraint. That is used by Piwik for
+			 * "deduplication".
+			 * 
+			 * MySQL does accept duplicates there if eg. "idorder" is NULL.
+			 *		idorder				idsite
+			 *		NULL				1
+			 *		NULL				2
+			 * 
+			 * That is not possible in Oracle! Oracle behaves more cautious,
+			 * if there is no data for one of both columns it MIGHT be a
+			 * duplicate, so it rejects any insert.
+			 * 
+			 * It is not possible to remove that unique-constraint just for 
+			 * running Piwik with Oracle, because then the "deduplication"-feature 
+			 * gets broken!
+			 * 
+			 * As a workaround we create and insert a "pseudo-orderId" into
+			 * order id, including a md5-hash of all primary key values:
+			 * 
+			 *		"cartupdate_d1c4e3c90a0275c2c96f68a289f08cfc 
+			 * 
+			 * So an insert with a different idsite remains possible.
+			 * 
+			 */
+			
+			if(Piwik_Common::isOracle()) 
+			{
+				$goal['idorder'] = 'cartupdate_' . md5($goal['idgoal'] . $goal['buster'] . $goal['idvisit']);
+			}
+			
 			$debugMessage = 'The conversion is an Ecommerce Cart Update';
 		}
 		$goal['revenue'] = $this->getRevenue(Piwik_Common::getRequestVar('revenue', 0, 'float', $this->request)); 
@@ -735,10 +770,48 @@ class Piwik_Tracker_GoalManager
 		printDebug("Ecommerce items that are added to the cart/order");
 		printDebug($itemsToInsert);
 		
-		$sql = "INSERT INTO " . Piwik_Common::prefixTable('log_conversion_item') . "
-					(idaction_sku, idaction_name, idaction_category, idaction_category2, idaction_category3, idaction_category4, idaction_category5, price, quantity, deleted, 
-					idorder, idsite, idvisitor, server_time, idvisit) 
-					VALUES ";
+		$bind = array();
+		
+		$fieldList = "(idaction_sku, idaction_name, idaction_category,"
+					.	" idaction_category2, idaction_category3, idaction_category4,"
+					.	" idaction_category5, price, quantity, deleted," 
+					.	" idorder, idsite, idvisitor, server_time, idvisit)";
+		
+		$sql = "INSERT ";  // at least they start all with INSERT,  Ancud-IT GmbH
+		
+		
+		/*
+		 * Ancud-IT GmbH 
+		 * ORACLE multiple inserts syntax
+		 * INSERT ALL
+		 *  INTO mytable (column1, column2, column3) VALUES ('val1.1', 'val1.2', 'val1.3')
+		 *	INTO mytable (column1, column2, column3) VALUES ('val2.1', 'val2.2', 'val2.3')
+		 *	INTO mytable (column1, column2, column3) VALUES ('val3.1', 'val3.2', 'val3.3')
+		 * SELECT * FROM dual;
+		 */
+		
+		if ( Piwik_Common::isOracle() )
+		{
+			$sql .= 'ALL ';
+		
+			foreach($itemsToInsert as $item)
+			{
+				$sql  .=  "INTO " . Piwik_Common::prefixTable('log_conversion_item')
+						.	$fieldList 
+						.	"  VALUES ";
+
+				$newRow = array_values($this->getItemRowEnriched($goal, $item));
+				$sql .= " ( ". Piwik_Common::getSqlStringFieldsArray($newRow) . " ) ";
+				$bind = array_merge($bind, $newRow);
+			}
+
+			$sql .= "SELECT * FROM DUAL";
+			
+		} else {
+			
+			$sql .= " INTO " . Piwik_Common::prefixTable('log_conversion_item') 
+					.	$fieldList 
+					.	" VALUES ";
 		$i = 0;
 		$bind = array();
 		foreach($itemsToInsert as $item)
@@ -749,8 +822,13 @@ class Piwik_Tracker_GoalManager
 			$i++;
 			$bind = array_merge($bind, $newRow);
 		}
+		}
+		
+		
 		Piwik_Tracker::getDatabase()->query($sql, $bind);
 		printDebug($sql);printDebug($bind);
+		
+	
 	}
 	
 	protected function getItemRowEnriched($goal, $item)
@@ -803,6 +881,41 @@ class Piwik_Tracker_GoalManager
 										? '0' 
 										: $visitorInformation['visit_last_action_time'];
 										
+			/*
+			 * Ancud-IT
+			 * 
+			 * In table "log_conversion" two columns, "idsite" and "idorder",
+			 * form a combined unique constraint. That is used by Piwik for
+			 * "deduplication".
+			 * 
+			 * MySQL does accept duplicates there if eg. "idorder" is NULL.
+			 *		idorder				idsite
+			 *		NULL				1
+			 *		NULL				2
+			 * 
+			 * That is not possible in Oracle! Oracle behaves more cautious,
+			 * if there is no data for one of both columns it MIGHT be a
+			 * duplicate, so it rejects any insert.
+			 * 
+			 * It is not possible to remove that unique-constraint just for 
+			 * running Piwik with Oracle, because then the "deduplication"-feature 
+			 * gets broken!
+			 * 
+			 * As a workaround we create and insert a "pseudo-orderId" into
+			 * order id, including a md5-hash of all primary key values:
+			 * 
+			 *		"standardgoal_f2fc2eba541f35d6f5a8eeb35e743e23" 
+			 * 
+			 * So an insert with a different idsite remains possible.
+			 * 
+			 */
+			
+            if (Piwik_Common::isOracle())
+			{
+				$newGoal['idorder'] = 'standardgoal_' 
+               . md5( $newGoal['idgoal'] . $newGoal['idvisit'] . $newGoal['buster']);
+			}
+			
 			$this->recordGoal($newGoal);
 		}
 	}
@@ -842,18 +955,38 @@ class Piwik_Tracker_GoalManager
 			Piwik_Tracker::getDatabase()->query($sql, $sqlBind);
 			return true;
 		}
-		else
+		else // Ancud-IT GmbH IGNORE killed, failed inserts must be caught by exception handler
 		{
-			$sql = 'INSERT IGNORE INTO ' . Piwik_Common::prefixTable('log_conversion') . "	
+			$ignore = Piwik_Common::isOracle() ? '' : 'IGNORE'; 
+			$sql = "INSERT " . $ignore . " INTO " . Piwik_Common::prefixTable('log_conversion') . "	
 					($fields) VALUES ($bindFields) ";
 			$bind = array_values($newGoal);
 			$result = Piwik_Tracker::getDatabase()->query($sql, $bind);
 			
+				
 			// If a record was inserted, we return true
 			return Piwik_Tracker::getDatabase()->rowCount($result) > 0;
 		}
 	}
 
+	/**
+	 * /**
+	 *  * Keep this for documentary purpose   Ancud-IT GmbH
+	 *  *
+	 * 
+	 * private function isDuplicate($orderId, $idSite)
+	 * {
+	 *		$sql = "SELECT DISTINCT idsite from "
+	 *		.	Piwik_Common::prefixTable("log_conversion")
+	 *		.	" WHERE idorder = ?";
+	 *		$bind = array($orderId); 
+	 *
+	 *		$result = Piwik_Tracker::getDatabase()->fetch($sql, $bind);
+	 *
+	 *		return count($result) > 0 && $result['idsite'] == $idSite;
+	 * } 
+	 */
+	
 	/**
 	 * Casts the item array so that array comparisons work nicely
 	 * @param array $row

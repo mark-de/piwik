@@ -28,7 +28,13 @@ class DatabaseTestCase extends PHPUnit_Framework_TestCase
 
             $dbConfig = Piwik_Config::getInstance()->database;
             $dbName = $dbConfig['dbname'];
+			
+			// Ancud-IT GmbH  dbname is needed for Oracle connect string!
+			if( $dbConfig['adapter'] != 'ORACLE') 
+			{
             $dbConfig['dbname'] = null;
+			}
+            
 
             Piwik::createDatabaseObject($dbConfig);
 

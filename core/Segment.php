@@ -263,10 +263,11 @@ class Piwik_Segment
     	{
     		if (is_array($table))
     		{
+    			// Ancud-IT GmbH: Dropped AS here 
     			// join condition provided
 				$alias = isset($table['tableAlias']) ? $table['tableAlias'] : $table['table'];
     			$sql .= "
-				LEFT JOIN ".Piwik_Common::prefixTable($table['table'])." AS ".$alias
+				LEFT JOIN ".Piwik_Common::prefixTable($table['table']) . " " . $alias 
     			." ON ".$table['joinOn'];
     			continue;
     		}
@@ -276,7 +277,7 @@ class Piwik_Segment
     			throw new Exception("Table '$table' can't be used for segmentation");
     		}
     		
-    		$tableSql = Piwik_Common::prefixTable($table)." AS $table";
+    		$tableSql = Piwik_Common::prefixTable($table) . " $table";
     		 
     		if ($i == 0)
     		{
@@ -412,6 +413,11 @@ class Piwik_Segment
     	$orderBy = preg_replace('/(log_visit|log_conversion|log_action)\./', 'log_inner.', $orderBy);
     	$groupBy = preg_replace('/(log_visit|log_conversion|log_action)\./', 'log_inner.', $groupBy);
     	
+    	/*
+		 * Ancud-IT GmbH expanded group-by-clause
+		 * shouldn't do any harm to MySQL!
+		 */
+		
     	$from = "(
 			SELECT
 				".implode(",
@@ -420,8 +426,8 @@ class Piwik_Segment
 				$from
 			WHERE
 				$where
-			GROUP BY log_visit.idvisit
-				) AS log_inner";
+			GROUP BY log_visit.idvisit, " . implode(",", $neededFields) . " ) log_inner";  
+		
 		
 		$where = false;
 		return $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);

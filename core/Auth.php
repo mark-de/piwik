@@ -77,4 +77,15 @@ class Piwik_Auth_Result extends Zend_Auth_Result
     {
     	return $this->_token_auth;
     }
+	
+	/**
+	 * Returns the login to authenticate the current user in the API
+	 * Ancud-IT GmbH 2013
+	 * @return string 
+	 */
+	public function getLogin()
+	{
+		return $this->_identity;
+	}
+	
 }

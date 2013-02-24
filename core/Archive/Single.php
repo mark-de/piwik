@@ -265,8 +265,13 @@ class Piwik_Archive_Single extends Piwik_Archive
 	   	$this->setRequestedReport($name);
 	   	$this->prepareArchive();
 
+		// Ancud-IT GmbH:
+		// store typeValue as boolean for to avoid several 
+		// comparing string operations later on.
+		$isBlobTable = $typeValue == "numeric" ? false : true ;
+
 		// values previously "get" and now cached
-		if($typeValue == 'numeric'
+		if(!$isBlobTable
 			&& $this->cacheEnabledForNumeric
 			&& isset($this->numericCached[$name])
 			)
@@ -276,7 +281,7 @@ class Piwik_Archive_Single extends Piwik_Archive
 		
 		// During archiving we prefetch the blobs recursively
 		// and we get them faster from memory after
-		if($typeValue == 'blob'
+		if($isBlobTable
 			&& isset($this->blobCached[$name]))
 		{
 			return $this->blobCached[$name];
@@ -293,13 +298,13 @@ class Piwik_Archive_Single extends Piwik_Archive
 		}
 
 		// select the table to use depending on the type of the data requested		
-		switch($typeValue)
+		switch($isBlobTable)
 		{
-			case 'blob':
+			case true:
 				$table = $this->archiveProcessing->getTableArchiveBlobName();
 			break;
 
-			case 'numeric':
+			case false:
 			default:
 				$table = $this->archiveProcessing->getTableArchiveNumericName();
 			break;
@@ -313,9 +318,13 @@ class Piwik_Archive_Single extends Piwik_Archive
 							);
 
 		$value = $tsArchived = false;
-		if (is_array($row))
+		// Ancud-IT GmbH: array might be empty, check keys
+		if (is_array($row)
+				&& array_key_exists( 'value', $row))
 		{
-			$value = $row['value'];
+            $value = Piwik_Common::isOracle() ? 
+					$this->getOracleBlob( $row, $isBlobTable ) : $row['value'];
+				               
 			$tsArchived = $row['ts_archived'];
 		}
 
@@ -326,7 +335,7 @@ class Piwik_Archive_Single extends Piwik_Archive
 
 		if($value === false)
 		{
-			if($typeValue == 'numeric' 
+			if( !$isBlobTable
 				&& $this->cacheEnabledForNumeric)
 			{
 				$this->numericCached[$name] = false;
@@ -335,12 +344,12 @@ class Piwik_Archive_Single extends Piwik_Archive
 		}
 		
 		// uncompress when selecting from the BLOB table
-		if($typeValue == 'blob' && $db->hasBlobDataType())
+		if( $isBlobTable && $db->hasBlobDataType() )
 		{
 			$value = $this->uncompress($value);
 		}
 		
-		if($typeValue == 'numeric' 
+		if( !$isBlobTable
 			&& $this->cacheEnabledForNumeric)
 		{
 			$this->numericCached[$name] = $value;
@@ -348,6 +357,37 @@ class Piwik_Archive_Single extends Piwik_Archive
 		return $value;
 	}
 	
+	
+	/**
+	 * Ancud-IT GmbH
+	 * @param array		$row
+	 * @param bool		$isBlobTable
+	 * @return
+	 */
+	private function getOracleBlob( $row, $isBlobTable = false )
+	{
+		if ( $isBlobTable && is_object($row['value']) )
+		{
+			// Ancud-IT GmbH: 
+			// http://docs.php.net/manual/da/oci-lob.load.php	
+			
+			$value = '';
+			while(!$row['value']->eof())
+			{
+				$value .= $row['value']->read(2000);
+			}  
+
+			$row['value']->close();
+
+			$value = pack("H*", $value );
+
+		} else
+		{
+			$value= $row['value'];
+		}
+			
+		return $value;
+	}
 	
 	/**
 	 * This method loads in memory all the subtables for the main table called $name.
@@ -422,12 +462,15 @@ class Piwik_Archive_Single extends Piwik_Archive
 		
 		// select blobs w/ name like "$name_[0-9]+" w/o using RLIKE
 		$nameEnd = strlen($name) + 2;
+		
+		// Ancud-IT GmbH: Oracle function is called "SUBSTR"!
+		$dbSubString = Piwik_Common::isOracle() ? "SUBSTR" : "SUBSTRING";
 		$query = $db->query("SELECT value, name
 								FROM $tableBlob
 								WHERE idarchive = ?
 									AND (name = ? OR
-											(name LIKE ? AND SUBSTRING(name, $nameEnd, 1) >= '0'
-														 AND SUBSTRING(name, $nameEnd, 1) <= '9') )",
+											(name LIKE ? AND $dbSubString(name, $nameEnd, 1) >= '0'
+														 AND $dbSubString(name, $nameEnd, 1) <= '9') )",
 								array( $this->idArchive, $name, $name.'%' ) 
 							);
 

@@ -711,24 +711,35 @@ abstract class Piwik_ArchiveProcessing
 		
 		$db = Zend_Registry::get('db');
 		$locked = self::PREFIX_SQL_LOCK . Piwik_Common::generateUniqId();
-		$date = date("Y-m-d H:i:s");
+				
+		$date = "'" . date("Y-m-d H:i:s") . "'";
+		$ifNullFunc = "ifnull";
+		
+		if (Piwik_Common::isOracle())
+		{
+		// Ancud-IT GmbH 2013  -  php date format seems to be fine, but got
+		// format errors from Oracle11g, calling Oracle date-conversion function
+		// for safety ...
+		// @TODO further investigation 
+			$date = " TO_DATE('" . date("Y-m-d H:i:s") . "', 'YYYY-MM-DD HH24:MI:SS')";
+			$ifNullFunc = "nvl";
+		}
 		
 		if (Piwik_GetDbLock($dbLockName, $maxRetries = 30) === false)
 		{
 			throw new Exception("loadNextIdArchive: Cannot get named lock for table $table.");
 		}
 		$db->exec("INSERT INTO $table "
-					." SELECT ifnull(max(idarchive),0)+1, 
-								'".$locked."',
-								".(int)$this->idsite.",
-								'".$date."',
-								'".$date."',
-								0,
-								'".$date."',
-								0 "
-					." FROM $table as tb1");
+					." SELECT " . $ifNullFunc . "(max(idarchive),0) + 1, '". $locked . "', " 
+								.(int)$this->idsite . ", "
+								. $date . ", "
+								. $date . ", "
+								." 0, " . $date
+								.", 0 "
+								." FROM $table "); // no 'as' here  Ancud-IT GmbH 2012
 		Piwik_ReleaseDbLock($dbLockName);
-        $id = $db->fetchOne("SELECT idarchive FROM $table WHERE name = ? LIMIT 1", $locked);
+		$sql = $db->limit( "SELECT idarchive FROM $table WHERE name = ?", 1, 0 );
+        $id = $db->fetchOne( $sql, $locked);
 
 		$this->idArchive = $id;
 	}
@@ -741,6 +752,25 @@ abstract class Piwik_ArchiveProcessing
 	{
 		$value = round($value, 2);
 		return $this->insertRecord($name, $value);
+	}
+	
+	/**
+	 * Ancud-IT GmbH 2012
+	 * @param string $value
+	 * @return string 
+	 */
+	private function prepareBlob($value)
+	{
+		if ($this->compressBlob) {
+			$value = $this->compress($value);
+		}
+		
+		// ORAXCLE special treatment
+		if (Piwik_Common::isOracle()) {
+			$value = bin2hex($value);
+		}
+		
+		return $value;
 	}
 	
 	/**
@@ -764,19 +794,15 @@ abstract class Piwik_ArchiveProcessing
 					$newName = $name . '_' . $id;
 				}
 				
-				if($this->compressBlob)
-				{
-					$value = $this->compress($value);
-				}
+				$value = $this->prepareBlob($value);
+				
 				$clean[] = array($newName, $value);
 			}
 			return $this->insertBulkRecords($clean);
 		}
 		
-		if($this->compressBlob)
-		{
-			$values = $this->compress($values);
-		}
+		$values = $this->prepareBlob($value);
+		
 
 		$this->insertRecord($name, $values);
 		return array($name => $values);
@@ -790,6 +816,7 @@ abstract class Piwik_ArchiveProcessing
 	protected function insertBulkRecords($records)
 	{
 		// Using standard plain INSERT if there is only one record to insert
+				
 		if($DEBUG_DO_NOT_USE_BULK_INSERT = false
 			|| count($records) == 1)
 		{
@@ -822,9 +849,11 @@ abstract class Piwik_ArchiveProcessing
 		else
 		{
 			$table = $this->tableArchiveBlob;
+			$lob = true;
 		}
 
-		Piwik::tableInsertBatch($table->getTableName(), $this->getInsertFields(), $values);
+		Piwik::tableInsertBatch($table->getTableName(), $this->getInsertFields(), $values, $lob);
+	
 		return true;
 	}
 	
@@ -852,6 +881,12 @@ abstract class Piwik_ArchiveProcessing
 	protected function insertRecord($name, $value)
 	{
 		// table to use to save the data
+		
+		$db = Zend_Registry::get('db');
+		$oracle = Piwik_Common::isOracle();
+		$ignore = $oracle ? '' : 'IGNORE';
+		$lob = false;
+		
 		if(is_numeric($value))
 		{
 			// We choose not to record records with a value of 0 
@@ -864,18 +899,34 @@ abstract class Piwik_ArchiveProcessing
 		else
 		{
 			$table = $this->tableArchiveBlob;
+			$lob = true;
 		}
 		
 		// duplicate idarchives are Ignored, see http://dev.piwik.org/trac/ticket/987
-		
-		$query = "INSERT IGNORE INTO ".$table->getTableName()." 
+		// Ancud-IT GmbH drop IGNORE if needed ..
+		// Oracle will not insert if PK/UNIQUE-KEY-constraints are violated
+		$query = "INSERT ". $ignore ." INTO ".$table->getTableName()." 
 					(". implode(", ", $this->getInsertFields()).")
 					VALUES (?,?,?,?,?,?,?,?)";
 		$bindSql = $this->getBindArray();
 		$bindSql[] = $name;
 		$bindSql[] = $value;
 //		var_dump($bindSql);
+		
+		try 
+		{
+			if ( $oracle && $lob ) {
+				$db->insertBlob($query, $bindSql, array('value'), $this->getInsertFields());
+			} else {
 		Piwik_Query($query, $bindSql);
+	}
+	
+		} catch ( Zend_Db_Statement_Oracle_Exception $ex )
+		{
+			if( $ex->getCode() != 1) {
+				throw $ex; 
+			}
+		}	
 	}
 	
 	/**
@@ -919,18 +970,18 @@ abstract class Piwik_ArchiveProcessing
 			$sqlSegmentsFindArchiveAllPlugins = "OR (name = '".$doneAllPluginsProcessed."' AND value = ".Piwik_ArchiveProcessing::DONE_OK.")
 					OR (name = '".$doneAllPluginsProcessed."' AND value = ".Piwik_ArchiveProcessing::DONE_OK_TEMPORARY.")";
 		}
-		$sqlQuery = "	SELECT idarchive, value, name, date1 as startDate
-						FROM ".$this->tableArchiveNumeric->getTableName()."
-						WHERE idsite = ?
-							AND date1 = ?
-							AND date2 = ?
-							AND period = ?
-							AND ( (name = '".$done."' AND value = ".Piwik_ArchiveProcessing::DONE_OK.")
-									OR (name = '".$done."' AND value = ".Piwik_ArchiveProcessing::DONE_OK_TEMPORARY.")
-									$sqlSegmentsFindArchiveAllPlugins
-									OR name = 'nb_visits')
-							$timeStampWhere
-						ORDER BY idarchive DESC";
+		$sqlQuery = "	SELECT idarchive, value, name, date1 as `startDate`"
+						." FROM ".$this->tableArchiveNumeric->getTableName()
+						." WHERE idsite = ?"
+						." AND date1 = ?"
+						." AND date2 = ?"
+						." AND period = ?"
+						." AND ( (name = '".$done."' AND value = ".Piwik_ArchiveProcessing::DONE_OK.")"
+						."			OR (name = '".$done."' AND value = ".Piwik_ArchiveProcessing::DONE_OK_TEMPORARY.")"
+						.			$sqlSegmentsFindArchiveAllPlugins
+						."			OR name = 'nb_visits')"
+						.	$timeStampWhere
+						." ORDER BY idarchive DESC";
 		$results = Piwik_FetchAll($sqlQuery, $bindSQL );
 		if(empty($results))
 		{

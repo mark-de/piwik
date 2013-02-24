@@ -286,7 +286,8 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $didWeUseBulk = Piwik::tableInsertBatch($table, array('idsite', 'url'), $data);
         if(version_compare(PHP_VERSION, '5.2.9') < 0 ||
             version_compare(PHP_VERSION, '5.3.7') >= 0 ||
-            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL')
+            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL' 
+				&& Piwik_Config::getInstance()->database['adapter'] != 'ORACLE')
         {
             $this->assertTrue($didWeUseBulk, "The test didn't LOAD DATA INFILE but fallbacked to plain INSERT, but we must unit test this function!");
         }
@@ -335,7 +336,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $table = $archiveProcessing->getTableArchiveBlobName();
 
         $data = $this->_getBlobDataInsert();
-        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
+        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'),  true);
         if(version_compare(PHP_VERSION, '5.2.9') < 0 ||
             version_compare(PHP_VERSION, '5.3.7') >= 0 ||
             Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL')
@@ -363,7 +364,7 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $table = $archiveProcessing->getTableArchiveBlobName();
 
         $data = $this->_getBlobDataInsert();
-        Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
+        Piwik::tableInsertBatchIterate($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, true);
         $this->_checkTableIsExpectedBlob($table, $data);
 
         // If we insert AGAIN, expect to throw an error because the primary key already exist
@@ -442,6 +443,8 @@ class ArchiveProcessingTest extends DatabaseTestCase
     {
         $ts = '2011-03-31 17:48:00';
         $str = '';
+		$array = array();
+		
         for($i = 0; $i < 256; $i++)
         {
             $str .= chr($i);
@@ -455,6 +458,16 @@ class ArchiveProcessingTest extends DatabaseTestCase
 
         $array[] = array(4, 'lorem ipsum compressed', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, gzcompress($str));
 
+		// Ancud-IT GmbH
+		
+		if ( Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle )
+		{
+			foreach( $array as $key => $val )
+			{
+				$array[$key][7] = bin2hex( $val[7] );
+			}
+		}
+		
         return $array;
     }
 }

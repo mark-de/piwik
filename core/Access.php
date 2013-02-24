@@ -163,7 +163,7 @@ class Piwik_Access
 	
 	static public function getRawSitesWithSomeViewAccess($login)
 	{
-		return Piwik_FetchAll(self::getSqlAccessSite("access, t2.idsite"), $login);
+		return Piwik_FetchAll(self::getSqlAccessSite("access, idsite"), $login);
 	}
 
 	/**
@@ -174,10 +174,20 @@ class Piwik_Access
 	 */
 	static public function getSqlAccessSite($select)
 	{
-		return "SELECT ". $select ."
-						  FROM ".Piwik_Common::prefixTable('access'). " as t1 
-							JOIN ".Piwik_Common::prefixTable('site')." as t2 USING (idsite) ".
-						" WHERE login = ?";
+		/*
+		 * Ancud-IT GmbH 2012
+		 * Oracle database doesn't allow "as" in a from-clause!
+		 * In MySQL "as" is optional, this statement should work there, too.
+		 */ 
+		
+		return "SELECT "
+				.		$select 
+				.			" FROM "
+				.		Piwik_Common::prefixTable('access')
+				.		"  JOIN "
+				.		Piwik_Common::prefixTable('site')
+				.		"  USING(idsite) "
+				.		" WHERE login = ?";
 	}
 	
 	/**

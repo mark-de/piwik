@@ -111,7 +111,7 @@ class Piwik_Db_Adapter
 //			'Pdo_Ibm',
 //			'Db2',
 //			'Pdo_Oci',
-//			'Oracle',
+			'Oracle'
 		);
 
 		$adapters = array();

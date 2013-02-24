@@ -154,6 +154,9 @@ minimum_mysql_version = 4.1
 ; PostgreSQL minimum required version
 minimum_pgsql_version = 8.3
 
+; OracleSQL minimum required version
+minimum_oracle_version = 10
+
 ; Minimum adviced memory limit in php.ini file (see memory_limit value)
 minimum_memory_limit = 128
 
@@ -484,7 +487,8 @@ Plugins[] 		= CoreHome
 Plugins[] 		= Proxy
 Plugins[] 		= API
 Plugins[] 		= Widgetize
-Plugins[] 		= Transitions
+;Plugins[]		= Transitions
+; keep Transitions disabled for Oracle
 Plugins[] 		= LanguagesManager
 Plugins[] 		= Actions
 Plugins[] 		= Dashboard

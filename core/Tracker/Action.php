@@ -147,6 +147,27 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
 	}
 	
 
+	public static function getHashFunc()
+	{
+		if( Piwik_Common::isOracle() ) 
+		{
+			return 'ORA_HASH';
+		}
+		
+		return 'CRC32';
+	}
+
+	
+	static function getOracleReturnStatement()
+	{
+		if( Piwik_Common::isOracle() )
+		{
+			return ' RETURN IDACTION INTO :primary';
+		}
+		
+		return '';
+	}
+
 	/**
 	 * Set request parameters
 	 *
@@ -443,11 +464,10 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
 	
 	static public function getSqlSelectActionId()
 	{
-		$sql = "SELECT idaction, type, name
+		return  "SELECT idaction, type, name
 							FROM ".Piwik_Common::prefixTable('log_action')
 						."  WHERE "
-						."		( hash = CRC32(?) AND name = ? AND type = ? ) ";
-		return $sql;
+						."		( name = ? AND hash = " . self::getHashFunc() . "(?) AND type = ? ) ";
 	}
 	
 	/**
@@ -477,7 +497,7 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
 			}
 			if($i > 0)
 			{
-				$sql .= " OR ( hash = CRC32(?) AND name = ? AND type = ? ) ";
+				$sql .= " OR ( hash = " . self::getHashFunc() . "(?) AND name = ? AND type = ? ) ";
 			}
 			if ($type == Piwik_Tracker_Action::TYPE_ACTION_URL)
 			{
@@ -526,7 +546,8 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
 		}
 		
 		$sql = "INSERT INTO ". Piwik_Common::prefixTable('log_action'). 
-				"( name, hash, type, url_prefix ) VALUES (?,CRC32(?),?,?)";
+				"( name, hash, type, url_prefix ) VALUES (?," . self::getHashFunc() . "(?),?,?)"
+				.	 self::getOracleReturnStatement();
 		// Then, we insert all new actions in the lookup table
 		foreach($actionsToInsert as $actionToInsert)
 		{
@@ -540,8 +561,9 @@ class Piwik_Tracker_Action implements Piwik_Tracker_Action_Interface
 			}
 			
 			Piwik_Tracker::getDatabase()->query($sql, array($name, $name, $type, $urlPrefix));
-			$actionId = Piwik_Tracker::getDatabase()->lastInsertId();
-			printDebug("Recorded a new action (".self::getActionTypeName($type).") in the lookup table: ". $name . " (idaction = ".$actionId.")");
+			$logAction = Piwik_Common::prefixTable('log_action');
+			$actionId = Piwik_Common::isOracle() ? Piwik_Tracker::getDatabase()->lastInsertId($logAction) :
+							Piwik_Tracker::getDatabase()->lastInsertId() ;
 			
 			$actionNamesAndTypes[$actionToInsert][] = $actionId;
 		}

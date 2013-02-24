@@ -142,7 +142,10 @@ class Piwik_Db_Schema
 			{
 				$schemaName = $dbInfos['schema'];
 			}
-			else
+			else if($dbInfos['adapter'] === 'ORACLE')
+			{
+				$schemaName = 'Oracle';
+			} else
 			{
 				$schemaName = 'Myisam';
 			}

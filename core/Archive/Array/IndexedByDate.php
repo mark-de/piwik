@@ -114,8 +114,9 @@ class Piwik_Archive_Array_IndexedByDate extends Piwik_Archive_Array
 				continue;
 			}
 
-			$sql = "SELECT value, name, date1 as startDate
-					FROM $table
+			$sql = "SELECT value, name, date1 as " 
+					.	"`startDate`"  .
+					" FROM $table
 					WHERE idarchive IN ( $inIds )
 					AND name IN ( $inNames )
 					ORDER BY date1, name";

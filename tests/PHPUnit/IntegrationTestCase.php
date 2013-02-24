@@ -39,7 +39,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 	{
         $dbConfig = Piwik_Config::getInstance()->database;
         $oldDbName = $dbConfig['dbname'];
-        $dbConfig['dbname'] = null;
+		$adapter = $dbConfig['adapter'];
+        $dbConfig['dbname'] = $adapter == 'ORACLE' ? $oldDbName : null;
         
         Piwik::createDatabaseObject($dbConfig);
         
@@ -115,7 +116,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         self::setApiToCall( array());
     }
 
-    public static function tearDownAfterClass( $dropDatabase = true )
+    public static function tearDownAfterClass( $dropDatabase = false )
     {
         try {
             $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
@@ -467,7 +468,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     {
         $trans_gif_64 = "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
         $expectedResponse = base64_decode($trans_gif_64);
-        self::assertEquals($expectedResponse, $response, "Expected GIF beacon, got: <br/>\n" . $response . "\n"
+        self::assertEquals($expectedResponse, $response, "Expected GIF beacon, got: <br/>\n"
+	        . var_export($response, true)
+	        . "\n If you are stuck, you can enable \$GLOBALS['PIWIK_TRACKER_DEBUG']=true; in piwik.php to get more debug info."
 //            .base64_encode($response) // uncomment to further debug when the GIF hides the error
         );
     }
@@ -762,6 +765,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     protected function _testApiUrl($testName, $apiId, $requestUrl)
     {
         $isLiveMustDeleteDates = strpos($requestUrl, 'Live.getLastVisits') !== false;
+		
         $request               = new Piwik_API_Request($requestUrl);
         $dateTime             = Piwik_Common::getRequestVar('date', '', 'string', Piwik_Common::getArrayFromQueryString($requestUrl));
 
@@ -905,7 +909,8 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     private function getProcessedAndExpectedDirs()
     {
         $path = $this->getPathToTestDirectory();
-        return array($path . '/processed/', $path . '/expected/');
+		$expected = Piwik_Common::isOracle() ? '/expected/oracle/' : '/expected/';
+        return array($path . '/processed/', $path . $expected);
     }
 
     private function getProcessedAndExpectedPaths($testName, $testId, $format = null)
@@ -1159,7 +1164,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     				}
     				else if (!ctype_print($value))
     				{
+    					// leading x for MySQL
+						// Ancud-IT GmbH
+						if( !Piwik_Common::isOracle())
     					$values[] = "x'".bin2hex(substr($value, 1))."'";
+						else
+								$values[] = "'".bin2hex(substr($value, 1))."'";		
     				}
     				else
     				{
@@ -1171,6 +1181,19 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     		}
     		
     		$sql = "INSERT INTO $table VALUES ".implode(',', $rowsSql);
+			
+			if( Piwik_Common::isOracle())
+			{
+				$sql = "INSERT ALL " ;
+				
+				foreach( $rowsSql as $singleRow )
+				{
+					$sql .= " INTO " . $table . " VALUES " . $singleRow;
+				}
+				
+				$sql .= " SELECT * FROM DUAL";
+			}
+			
     		Piwik_Query($sql);
     	}
     }
@@ -1182,7 +1205,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 	{
 		foreach (Piwik::getTablesArchivesInstalled() as $table)
 		{
-			Piwik_Query("DROP TABLE IF EXISTS $table");
+			// Ancud-IT GmbH    should work for all databases ...
+			try 
+			{
+				Piwik_Query("DROP TABLE  $table");
+			} catch( Exception $ex ) {}	
 		}
 		
 		Piwik_TablePartitioning::$tablesAlreadyInstalled = Piwik::getTablesInstalled($forceReload = true);

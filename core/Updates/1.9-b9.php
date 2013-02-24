@@ -25,6 +25,14 @@ class Piwik_Updates_1_9_b9 extends Piwik_Updates
 		$logVisit = Piwik_Common::prefixTable('log_visit');
 		$logConversion = Piwik_Common::prefixTable('log_conversion');
 		
+		$config = Piwik_Config::getInstance();
+		$adapter = $config->database['adapter'];
+		
+		if ($adapter == 'ORACLE' ) 
+		{
+			return self::getOracleSql($logVisit, $logConversion);
+		}
+		
 		$addColumns = "DROP `location_continent`,
 					   ADD `location_region` CHAR(2) NULL AFTER `location_country`,
 					   ADD `location_city` VARCHAR(255) NULL AFTER `location_region`,
@@ -38,6 +46,22 @@ class Piwik_Updates_1_9_b9 extends Piwik_Updates
 			// add geoip columns to log_conversion
 			"ALTER TABLE `$logConversion` $addColumns" => 1091,
 		);
+	}
+
+	static function getOracleSql($logVisit, $logConversion)
+	{
+		$dropColumns = "DROP COLUMN LOCATION_CONTINENT";
+		$addColumns = "ADD ( LOCATION_REGION CHAR(2) NULL, "
+					.	"LOCATION_CITY VARCHAR2(255) NULL, "
+					.	"LOCATION_LATITUDE NUMBER(10, 6) NULL, "
+					.	"LOCATION_LONGITUDE NUMBER(10, 6) NULL )";
+		
+		return array(
+			"ALTER TABLE $logVisit $dropColumns" => false,
+			"ALTER TABLE $logConversion $dropColumns" => false,
+			"ALTER TABLE $logVisit $addColumns" => false,
+			"ALTER TABLE $logConversion $addColumns" => false
+			);
 	}
 
 	static function update()

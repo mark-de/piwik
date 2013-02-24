@@ -2473,10 +2473,13 @@ class Piwik
 	 * @throws Exception
 	 * @return bool  True if the bulk LOAD was used, false if we fallback to plain INSERTs
 	 */
-	static public function tableInsertBatch($tableName, $fields, $values)
+	static public function tableInsertBatch($tableName, $fields, $values, $lob = false)
 	{
 		$filePath = PIWIK_USER_PATH . '/' . Piwik_AssetManager::MERGED_FILE_DIR . $tableName . '-'.Piwik_Common::generateUniqId().'.csv';
 
+		// Ancud-IT GmbH 2012 - hasBulkLoader returns false for now
+		// until we figured out how to do bulkloading + oci8-driver ...
+		// so we jump to fallback-method
 		if(Zend_Registry::get('db')->hasBulkLoader())
 		{
 			try {
@@ -2522,10 +2525,40 @@ class Piwik
 
 		// if all else fails, fallback to a series of INSERTs
 		@unlink($filePath);
-		self::tableInsertBatchIterate($tableName, $fields, $values);
+		self::tableInsertBatchIterate($tableName, $fields, $values, $lob );
 		return false;
 	}
 
+	static private function repairOracleBlobsArchive()
+	{
+		$archiveName = 'ARCHIVE_BLOB';
+		$db		   = Zend_Registry::get('db');
+		$blobArchives = $db->fetchAll("SELECT TABLE_NAME FROM USER_TABLES WHERE "
+				. "TABLE_NAME LIKE '%" . $archiveName . "%'");
+
+		foreach($blobArchives as $row)
+		{
+			$tableDesc = $db->describeTable($row['table_name']);
+
+			$blobFields = array();
+			foreach($tableDesc as $fieldName => $fieldDesc)
+			{
+				if($fieldDesc['DATA_TYPE'] == "CLOB")
+				{
+					$blobFields[] = $fieldName;
+				}
+			}
+
+			foreach($blobFields as $blobField)
+			{
+				$sql = "ALTER TABLE " . $row['table_name'] . " DROP COLUMN " . $blobField;
+				Piwik_Query($sql);
+				$sql = "ALTER TABLE " . $row['table_name'] . " ADD VALUE BLOB";
+				Piwik_Query($sql);
+			}
+		}
+	}
+	
 	/**
 	 * Performs a batch insert into a specific table by iterating through the data
 	 *
@@ -2536,20 +2569,64 @@ class Piwik
 	 * @param array   $values               array of data to be inserted
 	 * @param bool    $ignoreWhenDuplicate  Ignore new rows that contain unique key values that duplicate old rows
 	 */
-	static public function tableInsertBatchIterate($tableName, $fields, $values, $ignoreWhenDuplicate = true)
+	static public function tableInsertBatchIterate($tableName, $fields, $values, $lob = false, $ignoreWhenDuplicate = true)
 	{
+		// self::repairOracleBlobsArchive(); // Ancud-IT GmbH  
+		// @TODO
+		$ora = Piwik_Common::isOracle();
+		$ignore = $ora ? '' : 'IGNORE';
+		
 		$fieldList = '('.join(',', $fields).')';
-		$ignore = $ignoreWhenDuplicate ? 'IGNORE' : '';
+		$blobFields[] =  'value' ;
+		
+		if ( $ora && $lob ) 
+		{
+			foreach($values as $row) 
+			{
+				$query = "INSERT INTO ". $tableName ." $fieldList
+						VALUES (".Piwik_Common::getSqlStringFieldsArray($row).")";	
+					
+				self::tableInsertBatchOracleBlobs( $query, $row, $ignoreWhenDuplicate, $blobFields, $fields );
+			}
+			
+			return;
+		}
 
-		foreach($values as $row) {
-			$query = "INSERT $ignore
-					INTO ".$tableName."
-					$fieldList
+		foreach($values as $row) 
+		{
+			$query = "INSERT  " . $ignore . " INTO ". $tableName ." $fieldList
 					VALUES (".Piwik_Common::getSqlStringFieldsArray($row).")";
+			try 
+			{
 			Piwik_Query($query, $row);
+				// Ancud-IT GmbH fallback solution as IGNORE option isn't supported in Oracle
+			}
+			catch (Exception $ex )
+			{
+				if( !$ignoreWhenDuplicate || $ex->getCode() != 1  )
+					throw $ex; 
+				;
+			}
 		}
 	}
 
+	private static function tableInsertBatchOracleBlobs( $query, $row, $ignoreWhenDuplicate, $blobFields, $fields )
+	{	
+		
+		$db = Zend_Registry::get('db');
+		
+		try 
+		{
+			$db->insertBlob($query, $row, $blobFields, $fields ); // Ancud-IT GmbH fallback solution as 
+										// IGNORE option isn't supported in Oracle
+		} catch (Exception $ex )
+		{
+			if( !$ignoreWhenDuplicate || $ex->getCode() != 1  )
+				throw $ex; 
+		}
+
+	}
+	
 	/**
 	 * Generate advisory lock name
 	 *

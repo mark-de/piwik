@@ -479,8 +479,16 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 				$localTimes[$k] = '0' . $time;
 			}
 		}
+		
+		
 		$localTime = $localTimes['h'] .':'. $localTimes['i'] .':'. $localTimes['s'];
 
+		if (Piwik_Common::isOracle())
+		{
+			// Ancud-IT GmbH: Oracle's interval-to-days data type expects a day parameter!
+			$localTime = '0 ' . $localTime;
+		}
+		
 		$idcookie = $this->getVisitorIdcookie();
 
 		$defaultTimeOnePageVisit = Piwik_Config::getInstance()->Tracker['default_time_one_page_visit'];
@@ -690,6 +698,12 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 		$values = Piwik_Common::getSqlStringFieldsArray($this->visitorInfo);
 
 		$sql = "INSERT INTO ".Piwik_Common::prefixTable('log_visit'). " ($fields) VALUES ($values)";
+		
+		if (Piwik_Common::isOracle())
+		{
+			$sql .= " RETURN IDVISIT INTO :primary";
+		}
+		
 		$bind = array_values($this->visitorInfo);
 		Piwik_Tracker::getDatabase()->query( $sql, $bind);
 
@@ -714,8 +728,13 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 			return $this->visitorInfo['idvisitor'];
 		}
 		// If the visitor had a first party ID cookie, then we use this value
+		
+		$idvisitorLength = Piwik_Common::isOracle() ? 
+				Piwik_Tracker::LENGTH_HEX_ID_STRING : Piwik_Tracker::LENGTH_BINARY_ID;
+		
 		if(!empty($this->visitorInfo['idvisitor'])
-			&& strlen($this->visitorInfo['idvisitor']) == Piwik_Tracker::LENGTH_BINARY_ID)
+			&& strlen($this->visitorInfo['idvisitor']) == $idvisitorLength)
+			// Ancud-IT GmbH idvisitor is 16 chars (hex representation of 8 bytes)
 		{
 			return $this->visitorInfo['idvisitor'];
 		}
@@ -1036,7 +1055,10 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 		
 		if($matchVisitorId)
 		{
+			if( !Piwik_Common::isOracle() )
 			printDebug("Matching visitors with: visitorId=".bin2hex($this->visitorInfo['idvisitor'])." OR configId=".bin2hex($configId));
+			else
+			printDebug("Matching visitors with: visitorId=".$this->visitorInfo['idvisitor']." OR configId=".$configId);
 		}
 		else
 		{
@@ -1047,35 +1069,34 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 		// No custom var were found in the request, so let's copy the previous one in a potential conversion later
 		if(!$this->customVariablesSetFromRequest)
 		{
-			$selectCustomVariables = ', 
-				custom_var_k1, custom_var_v1,
-				custom_var_k2, custom_var_v2,
-				custom_var_k3, custom_var_v3,
-				custom_var_k4, custom_var_v4,
-				custom_var_k5, custom_var_v5';
+			$selectCustomVariables = ', custom_var_k1, custom_var_v1, '
+							.	'custom_var_k2, custom_var_v2, '
+							.	'custom_var_k3, custom_var_v3, '
+							.	'custom_var_k4, custom_var_v4, '
+							.	'custom_var_k5, custom_var_v5';
 		}
 		
-		$select = "SELECT  	idvisitor,
-							visit_last_action_time,
-							visit_first_action_time,
-							idvisit,
-							visit_exit_idaction_url,
-							visit_exit_idaction_name,
-							visitor_returning,
-							visitor_days_since_first,
-							visitor_days_since_order,
-							location_country,
-							location_region,
-							location_city,
-							location_latitude,
-							location_longitude,
-							referer_name,
-							referer_keyword,
-							referer_type,
-							visitor_count_visits,
-							visit_goal_buyer
-							$selectCustomVariables 
-		";
+		$select = "SELECT  	idvisitor, "
+							.	"visit_last_action_time, "
+							.	"visit_first_action_time, "
+							.	"idvisit, "
+							.	"visit_exit_idaction_url, "
+							.	"visit_exit_idaction_name, "
+							.	"visitor_returning, "
+							.	"visitor_days_since_first, "
+							.	"visitor_days_since_order, "
+							.	"location_country, "
+							.	"location_region, "
+							.	"location_city, "
+							.	"location_latitude, "
+							.	"location_longitude, "
+							.	"referer_name, "
+							.	"referer_keyword, "
+							.	"referer_type, "
+							.	"visitor_count_visits, "
+							.	"visit_goal_buyer"
+							.	$selectCustomVariables ;
+		
 		$from = "FROM ".Piwik_Common::prefixTable('log_visit');
 
 		
@@ -1111,12 +1132,14 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 				$bindSql[] = $this->visitorInfo['idvisitor'];
 			}
 			
-			$sql = "$select
-				$from
+			$sql = " $select $from
 				WHERE ".$where."
-				ORDER BY visit_last_action_time DESC
-				LIMIT 1";
+						ORDER BY visit_last_action_time DESC";
+			
+			$sql = $this->limitSql($sql, 1);	
 		}
+		// @TODO Ancud-IT GmbH check that statement above again
+		
 		// We have a config_id AND a visitor_id. We match on either of these.
 		// 		Why do we also match on config_id?
 		//		we do not trust the visitor ID only. Indeed, some browsers, or browser addons, 
@@ -1134,34 +1157,113 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 			$bindSql[] = $this->idsite;
 			$where = ' AND config_id = ?';
 			$bindSql[] = $configId;
-			$sqlConfigId = "$select ,
+			$sqlConfigId = $this->limitSql("$select ,
 					0 as priority
 					$from
 					WHERE $whereSameBothQueries $where
-					ORDER BY visit_last_action_time DESC
-					LIMIT 1
-			";
+					ORDER BY visit_last_action_time DESC ", 1);
 		
 			// will use INDEX index_idsite_idvisitor (idsite, idvisitor)
 			$bindSql[] = $timeLookBack;
 			$bindSql[] = $this->idsite;
 			$where = ' AND idvisitor = ?';
 			$bindSql[] = $this->visitorInfo['idvisitor'];
-			$sqlVisitorId = "$select ,
+			$sqlVisitorId = $this->limitSql("$select ,
 					1 as priority
 					$from
-					WHERE $whereSameBothQueries $where
-					LIMIT 1
-			";
+					WHERE $whereSameBothQueries $where ", 1);
 			
 			// We join both queries and favor the one matching the visitor_id if it did match
-			$sql = " ( $sqlConfigId ) 
+			$sql = $this->limitSql( "SELECT a.* FROM ( "
+                    .    "(" . $sqlConfigId . ")"  
+					.	" UNION " 
+					.   "(" . $sqlVisitorId . ")"
+					.	" ) a ORDER BY PRIORITY DESC ", 1);
+			
+			// @TODO Ancud-IT GmbH check this first if s.th goes wrong
+			
+			/**SELECT *
+				FROM
+				(SELECT *
+				FROM (
+					(SELECT *
+					FROM
+					(SELECT idvisitor,
+						visit_last_action_time,
+						visit_first_action_time,
+						idvisit,
+						visit_exit_idaction_url,
+						visit_exit_idaction_name,
+						visitor_returning,
+						visitor_days_since_first,
+						visitor_days_since_order,
+						location_country,
+						location_region,
+						location_city,
+						location_latitude,
+						location_longitude,
+						referer_name,
+						referer_keyword,
+						referer_type,
+						visitor_count_visits,
+						visit_goal_buyer,
+						custom_var_k1,
+						custom_var_v1,
+						custom_var_k2,
+						custom_var_v2,
+						custom_var_k3,
+						custom_var_v3,
+						custom_var_k4,
+						custom_var_v4,
+						custom_var_k5,
+						custom_var_v5 ,
+						0 AS PRIORITY
+					FROM piwik_log_visit
+					ORDER BY VISIT_LAST_ACTION_TIME DESC
+					)
+					WHERE ROWNUM <= 1
+					)
 					UNION 
-					( $sqlVisitorId ) 
-					ORDER BY priority DESC 
-					LIMIT 1";
+					(SELECT *
+					FROM
+					(SELECT idvisitor,
+						visit_last_action_time,
+						visit_first_action_time,
+						idvisit,
+						visit_exit_idaction_url,
+						visit_exit_idaction_name,
+						visitor_returning,
+						visitor_days_since_first,
+						visitor_days_since_order,
+						location_country,
+						location_region,
+						location_city,
+						location_latitude,
+						location_longitude,
+						referer_name,
+						referer_keyword,
+						referer_type,
+						visitor_count_visits,
+						visit_goal_buyer,
+						custom_var_k1,
+						custom_var_v1,
+						custom_var_k2,
+						custom_var_v2,
+						custom_var_k3,
+						custom_var_v3,
+						custom_var_k4,
+						custom_var_v4,
+						custom_var_k5,
+						custom_var_v5 ,
+						1 AS PRIORITY
+					FROM piwik_log_visit
+					)
+					WHERE ROWNUM <= 1
+					) )
+				ORDER BY PRIORITY DESC
+				)
+				WHERE ROWNUM <= 1 **/
 		}
-		
 		
 		$visitRow = Piwik_Tracker::getDatabase()->fetch($sql, $bindSql);
 //		var_dump($sql);var_dump($bindSql);var_dump($visitRow);
@@ -1227,6 +1329,29 @@ class Piwik_Tracker_Visit implements Piwik_Tracker_Visit_Interface
 		}
 	}
 
+	/**
+	 * Ancud-IT GmbH 
+	 * helper function to limit number of 
+	 * returned rows for queries 
+	 * with means specific to different 
+	 * database vendors!
+	 * @param	string	 $sql
+	 * @param	int		 $int
+	 * @return	string 
+	 */
+	private function limitSql( $sql, $int )
+	{
+		if( Piwik_Common::isOracle()) {
+				$sql = "SELECT * FROM ( " . $sql . " )"
+						.	" WHERE ROWNUM <= ". $int;
+		} else {
+				$sql .= " LIMIT " . $int;
+		}
+			
+		return $sql;
+	}
+	
+	
 	static public function getCustomVariables($scope, $request)
 	{
 		if($scope == 'visit') {

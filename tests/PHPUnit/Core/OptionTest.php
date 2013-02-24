@@ -20,7 +20,7 @@ class OptionTest extends DatabaseTestCase
         $this->assertFalse(Piwik_Option::getInstance()->get('anonymous_defaultReport'));
 
         // populate table, expect '1' (i.e., found)
-        Piwik_Query("INSERT INTO ".Piwik_Common::prefixTable('option')." VALUES ('anonymous_defaultReport', '1', false)");
+        Piwik_Query("INSERT INTO ".Piwik_Common::prefixTable('option')." VALUES ('anonymous_defaultReport', '1', 0)");
         $this->assertSame('1', Piwik_Option::getInstance()->get('anonymous_defaultReport'));
 
         // delete row (bypassing API), expect '1' (i.e., from cache)
@@ -42,7 +42,7 @@ class OptionTest extends DatabaseTestCase
         $this->assertFalse(Piwik_GetOption('anonymous_defaultReport'));
 
         // populate table, expect '1' (i.e., found)
-        Piwik_Query("INSERT INTO ".Piwik_Common::prefixTable('option')." VALUES ('anonymous_defaultReport', '1',true)");
+        Piwik_Query("INSERT INTO ".Piwik_Common::prefixTable('option')." VALUES ('anonymous_defaultReport', '1',1)");
         $this->assertSame('1', Piwik_GetOption('anonymous_defaultReport'));
 
         // delete row (bypassing API), expect '1' (i.e., from cache)

@@ -117,11 +117,16 @@ class Piwik_Date
  	/**
  	 * Returns the datetime of the current timestamp
  	 *
+ 	 * @TODO Ancud-IT 2012: to be revised, added a parameter to enable customized dateformats!
  	 * @return string
  	 */
- 	function getDatetime()
+ 	function getDatetime( $dateTimeFormat = null )
  	{
- 		return $this->toString(self::DATE_TIME_FORMAT);
+		if ($dateTimeFormat == null)
+		{
+			 $dateTimeFormat = self::DATE_TIME_FORMAT;
+ 	}
+		return $this->toString($dateTimeFormat);
  	}
 
  	/**

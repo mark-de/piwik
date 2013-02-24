@@ -104,7 +104,9 @@ class PrivacyManagerTest extends IntegrationTestCase
         Piwik_TablePartitioning::$tablesAlreadyInstalled = null;
         
         $tempTableName = Piwik_Common::prefixTable(Piwik_PrivacyManager_LogDataPurger::TEMP_TABLE_NAME);
-        Piwik_Query("DROP TABLE IF EXISTS ".$tempTableName);
+        try {
+			Piwik_Query("DROP TABLE  ".$tempTableName);
+		} catch( Exception $ex) {}
     }
     
     /**
@@ -712,18 +714,25 @@ class PrivacyManagerTest extends IntegrationTestCase
         
         $sql = "INSERT INTO %s (idarchive,name,idsite,date1,date2,period,ts_archived,value)
                         VALUES (10000,?,1,?,?,?,?,?)";
-        
+        $db = Zend_Registry::get('db');
+		$ora = $db instanceof Piwik_Db_Adapter_Oracle;
         // one metric for jan & one for feb
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][0])),
                     array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 1, 100));
+                   // array(self::GARBAGE_FIELD, $janDate1, $janDate1, $ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', 100));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][1])),
                     array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 1, 200));
+                  //  array(self::GARBAGE_FIELD, $febDate1, $febDate1, $ora ? 2 : $janDate1, '2012-09-19 15:33:44.00', 200));
         
         // add garbage reports
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][0])),
-                    array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 10, 'blobval'));
+					array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 10,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+                //    array(self::GARBAGE_FIELD, $janDate1, $janDate1,
+				//		$ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][1])),
-                    array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 20, 'blobval'));
+					array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 20,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+                  //  array(self::GARBAGE_FIELD, $febDate1, $febDate1, 
+					//	$ora ? 2 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
     }
     
     protected function _checkNoDataChanges()
@@ -802,10 +811,12 @@ class PrivacyManagerTest extends IntegrationTestCase
         $tempTableName = Piwik_Common::prefixTable(Piwik_PrivacyManager_LogDataPurger::TEMP_TABLE_NAME);
         $logLinkVisitActionTable = Piwik_Common::prefixTable("log_link_visit_action");
         
+        $currTime = Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle ? "SYSDATE" : "NOW()";
+       
         $sql = "INSERT INTO $logLinkVisitActionTable
                             (idsite, idvisitor, server_time, idvisit, idaction_url, idaction_url_ref,
                             idaction_name, idaction_name_ref, time_spent_ref_action)
-                     VALUES (1, 'abc', NOW(), 15, $unusedIdAction, $unusedIdAction,
+                     VALUES (1, 'abc', $currTime, 15, $unusedIdAction, $unusedIdAction,
                              $unusedIdAction, $unusedIdAction, 1000)";
         
         Piwik_Query($sql);
@@ -829,9 +840,11 @@ class PrivacyManagerTest extends IntegrationTestCase
     protected function _tableExists( $tableName )
     {
         $dbName = Piwik_Config::getInstance()->database['dbname'];
-        
-        $sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
-        return Piwik_FetchOne($sql, array($dbName, Piwik_Common::prefixTable($tableName))) == 1;
+        $ora = Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle;
+        $sql = $ora ?  "SELECT COUNT(*) FROM user_tables where table_name = ?" 
+					 : "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+        return $ora ?  Piwik_FetchOne($sql, array( strtoupper( Piwik_Common::prefixTable($tableName) ))) == 1
+					 : Piwik_FetchOne($sql, array($dbName, Piwik_Common::prefixTable($tableName))) == 1;
     }
     
     protected static function _getArchiveTableNames()

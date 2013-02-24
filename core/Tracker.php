@@ -389,6 +389,10 @@ class Piwik_Tracker
 			case 'MYSQLI':
 				require_once PIWIK_INCLUDE_PATH .'/core/Tracker/Db/Mysqli.php';
 				return new Piwik_Tracker_Db_Mysqli($configDb);
+				
+			case 'ORACLE':
+				require_once PIWIK_INCLUDE_PATH.'/core/Tracker/Db/Oracle.php';
+				return new Piwik_Tracker_Db_Oracle($configDb);
 		}
 
 		throw new Exception('Unsupported database adapter '.$configDb['adapter']);

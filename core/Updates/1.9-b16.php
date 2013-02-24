@@ -22,6 +22,14 @@ class Piwik_Updates_1_9_b16 extends Piwik_Updates
 	
 	static function getSql($schema = 'Myisam')
 	{
+		$config = Piwik_Config::getInstance();
+		$adapter = $config->database['adapter'];
+		
+		if ($adapter == 'ORACLE' ) 
+		{
+			return self::getOracleSql();
+		} 
+		
 		return array(
 			'ALTER TABLE  `'. Piwik_Common::prefixTable('log_link_visit_action') .'`
 			CHANGE `idaction_url` `idaction_url` INT( 10 ) UNSIGNED NULL DEFAULT NULL'
@@ -44,6 +52,35 @@ class Piwik_Updates_1_9_b16 extends Piwik_Updates
 		);
 	}
 
+	/**
+	 * Oracle statements
+	 * @return array 
+	 */
+	
+	static function getOracleSql()
+	{
+		$logLinkVa = Piwik_Common::prefixTable('log_link_visit_action');
+		$logVisit = Piwik_Common::prefixTable('log_visit');
+		$site = Piwik_Common::prefixTable('site');
+		
+		/**
+		 * It is not possible to ADD cols to an Oracle table with NOT NULL constraints
+		 */
+		
+		$sql = array( 
+			'ALTER TABLE ' . $logLinkVa . ' MODIFY IDACTION_URL NUMBER(11,0) NULL' => false,
+			'ALTER TABLE ' . $logVisit . ' ADD VISIT_TOTAL_SEARCHES NUMBER(11,0)' => 1430,
+			'ALTER TABLE ' . $site . ' ADD ( SITESEARCH NUMBER(3,0) DEFAULT 1, '
+							.	'sitesearch_keyword_parameters VARCHAR2(4000),  '
+							.	'sitesearch_category_parameters VARCHAR2(4000))' => false,
+			'UPDATE ' . $site . ' SET SITESEARCH = 1' => false
+		) ;
+		
+		return $sql;
+	}
+
+	
+	
 	static function update()
 	{
 		Piwik_Updater::updateDatabase(__FILE__, self::getSql());
