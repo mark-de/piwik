@@ -32,4 +32,3 @@ tests/PHPUnit/Integration/processed/
 tests/PHPUnit/phpunit.xml
 tests/results/
 nbproject
-nbproject/*
