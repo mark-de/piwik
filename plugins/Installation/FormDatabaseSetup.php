@@ -68,8 +68,12 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
 
 		// default values
 		$this->addDataSource(new HTML_QuickForm2_DataSource_Array(array(
-			'host' => '127.0.0.1',
-			'tables_prefix' => 'piwik_',
+			'host' => 'sample.hostname.de[:portnumber]',
+			'tables_prefix' => 'p_',
+			'password' => '',
+			'username' => '',
+			'dbname' => '',
+			'adapter' => ''
 		)));
 	}
 	
@@ -98,6 +102,11 @@ class Piwik_Installation_FormDatabaseSetup extends Piwik_QuickForm2
 			'adapter'       => $adapter,
 			'port'          => $port,
 		);
+		
+		if($adapter == 'ORACLE') 
+		{
+			$dbInfos['dbora'] = true;
+		}
 		
 		if(($portIndex = strpos($dbInfos['host'], '/')) !== false)
 		{
@@ -182,6 +191,10 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
 		}
 		
 		$db = Zend_Registry::get('db');
+		// Ancud-IT GmbH   privilege testing restricted
+		// oracle tablespace owner usually HAS all necessary privilege
+		if ($db instanceof Piwik_Db_Adapter_Oracle)
+			return true;
 		
 		try
 		{
@@ -311,7 +324,15 @@ class Piwik_Installation_FormDatabaseSetup_Rule_checkUserPrivileges extends HTML
 	 */
 	private function dropExtraTables( $db )
 	{
-		$db->query('DROP TABLE IF EXISTS '.self::TEST_TABLE_NAME.', '.self::TEST_TEMP_TABLE_NAME);
+		/*
+		 * Ancud-IT GmbH
+		 * -	get rid of "IF EXISTS"
+		 * -	Should work with all databases
+		 */
+		try 
+		{
+			$db->query('DROP TABLE '.self::TEST_TABLE_NAME.', '.self::TEST_TEMP_TABLE_NAME);
+		} catch( Exception $ex ) {}	
 	}
 }
 
