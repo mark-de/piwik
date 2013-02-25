@@ -185,11 +185,23 @@ class Piwik_LanguagesManager_API
 		{
 			return false;
 		}
+		// @TODO Ancud-IT GmbH : critical merge statement, to be revised
 		$paramsBind = array($login, $languageCode, $languageCode);
+		
+		if( Piwik_Common::isOracle()) 
+		{
+			Piwik_Query('MERGE INTO '.Piwik_Common::prefixTable('user_language') . ' TARGET'.
+					' USING (SELECT ? AS login , ? AS language FROM DUAL  ) SOURCE 
+						
+					ON (TARGET.login = SOURCE.login) WHEN MATCHED THEN UPDATE SET TARGET.language = ?
+					 WHEN NOT MATCHED THEN INSERT (TARGET.login, TARGET.language) VALUES (SOURCE.login, SOURCE.language)',
+					$paramsBind);
+		} else 
+		{
 		Piwik_Query('INSERT INTO '.Piwik_Common::prefixTable('user_language') .
 					' (login, language)
 						VALUES (?,?)
-					ON DUPLICATE KEY UPDATE language=?',
-					$paramsBind);
+					ON DUPLICATE KEY UPDATE language=?', $paramsBind);
+		}
 	}
 }

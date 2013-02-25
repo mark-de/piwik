@@ -111,14 +111,23 @@ class Piwik_LanguagesManager extends Piwik_Plugin
 					PRIMARY KEY ( login )
 					)  DEFAULT CHARSET=utf8 " ;
 			Piwik_Exec($sql);
-		} catch(Exception $e){
 			// mysql code error 1050:table already exists
 			// see bug #153 http://dev.piwik.org/trac/ticket/153
-			if(!Zend_Registry::get('db')->isErrNo($e, '1050'))
-			{
+			// Ancud-IT GmbH    
+			// -	Oracle error code for this is 0955  
+			// -	the Oracle-adapter throws a Zend_Db_Exception
+			//		if it finds a DDL-Statement,
+			//		including the error code!
+		} catch(Exception $e){
+			
+			if( Piwik_Common::isOracle()) {
+				if( $e->getCode() != 955 ) {
 				throw $e;
 			}
+			} else if( !Zend_Registry::get('db')->isErrNo($e, '1050')) {
+				throw $e;
 		}
+	}
 	}
 	
 	/**
