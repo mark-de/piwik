@@ -7,7 +7,6 @@ themes/logo-header.png
 themes/logo.png
 piwik-min.js
 robots.txt
-tmp
 tmp/*
 .cache
 .externalToolBuilders
