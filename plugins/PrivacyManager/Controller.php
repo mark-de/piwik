@@ -162,6 +162,16 @@ class Piwik_PrivacyManager_Controller extends Piwik_Controller_Admin
 	
 	protected function getDeleteDBSizeEstimate( $getSettingsFromQuery = false, $forceEstimate = false )
 	{
+		$result = array();
+		
+		if( Piwik_Common::isOracle())
+		{
+			$result['sizeAfterPurge'] = 'not supported by Oracle driver';
+			$result['spaceSaved'] = 'not supported by Oracle driver';
+			$result['currentSize'] = 'not supported by Oracle driver';
+			return $result;
+		}
+
 		// get the purging settings & create two purger instances
 		if ($getSettingsFromQuery)
 		{
