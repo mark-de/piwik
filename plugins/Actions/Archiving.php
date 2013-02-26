@@ -131,7 +131,9 @@ class Piwik_Actions_Archiving
 				AND log_link_visit_action.idsite = ?
 				AND log_link_visit_action.%s IS NOT NULL";
 
-		$groupBy = "log_action.idaction";
+		// Ancud-IT GmbH  group by clause needs all fields from the select clause !
+		$groupBy = " log_action.idaction, log_action.type, log_action.name, log_action.url_prefix  " ;
+        
 		$orderBy = "`" . Piwik_Archive::INDEX_PAGE_NB_HITS . "` DESC, name ASC";
 
 		$rankingQuery = false;
@@ -155,8 +157,23 @@ class Piwik_Actions_Archiving
 		// 2) For each page view, count number of times the referrer page was a Site Search
 		if($this->isSiteSearchEnabled())
 		{
-			$selectFlagNoResultKeywords = ",
-				CASE WHEN (MAX(log_link_visit_action.custom_var_v". Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT.") = 0 AND log_link_visit_action.custom_var_k". Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT." = '". Piwik_Tracker_Action::CVAR_KEY_SEARCH_COUNT. "') THEN 1 ELSE 0 END AS `" . Piwik_Archive::INDEX_SITE_SEARCH_HAS_NO_RESULT . "`";
+			$null = "0";
+
+            if(Piwik_Common::isOracle())
+            {       
+                $null = "'0'"; // Ancud-IT   oci8 returns a true string and nothing else              
+            }
+            
+            $maxExpr = "MAX(log_link_visit_action.custom_var_v". Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT.")";
+			
+			$selectFlagNoResultKeywords = ","
+				.	" CASE WHEN ("
+				.		$maxExpr . " = " . $null 
+				.		" AND " 
+				.		"MAX(log_link_visit_action.custom_var_k" . Piwik_Tracker_Action::CVAR_INDEX_SEARCH_COUNT
+				.				") = '" . Piwik_Tracker_Action::CVAR_KEY_SEARCH_COUNT. "') "
+				.	"THEN 1 ELSE 0 END AS `" 
+				.	Piwik_Archive::INDEX_SITE_SEARCH_HAS_NO_RESULT . "`";
 
 			//we need an extra JOIN to know whether the referrer "idaction_name_ref" was a Site Search request
 			$from[] = array(
@@ -185,6 +202,42 @@ class Piwik_Actions_Archiving
 	}
 
 	/**
+	 * Ancud-IT GmbH  helper function
+	 * workaround, needed if ranking_query is disabled
+	 * because Piwik_Actions_ArchivingHelper needs 
+	 * (Piwik_Actions_ArchivingHelper::updateActionsTableWithRowQuery)
+	 * values from field log_action.type ! 
+	 * @param type $fromTable
+	 * @param type $joinTable
+	 * @param type $joinCon
+	 * @return string 
+	 */
+	private function getExtraSelects( $fromTable, $joinTable, $joinCon )
+	{
+		
+		$extraSelects = false;
+		$from = $fromTable;
+		$arrExtraSelects = array();
+
+		if( Piwik_Common::isOracle()) {
+			$extraSelects = 'log_action.type,';
+			$from = array(
+			$fromTable,
+			array(
+				"table" => $joinTable,
+				"joinOn" => $joinCon
+				)
+			);
+		}
+		
+		$arrExtraSelects['from'] = $from;
+		$arrExtraSelects['extraSelects'] = $extraSelects;
+		
+		return $arrExtraSelects;		
+	}
+	
+	
+	/**
 	 * Entry actions for Page URLs and Page names
 	 */
 	protected function archiveDayEntryActions($archiveProcessing, $rankingQueryLimit)
@@ -211,8 +264,9 @@ class Piwik_Actions_Archiving
 			);
 			$orderBy = "`" . Piwik_Archive::INDEX_PAGE_ENTRY_NB_ACTIONS . "` DESC, log_action.name ASC";
 		} else {
-			$extraSelects = false;
-			$from = "log_visit";
+			$arrExtraSelects = $this->getExtraSelects("log_visit", "log_action", "log_visit.%s = log_action.idaction");
+			$extraSelects = $arrExtraSelects['extraSelects'];
+			$from = $arrExtraSelects['from'];	
 			$orderBy = false;
 		}
 
@@ -228,7 +282,12 @@ class Piwik_Actions_Archiving
 				AND log_visit.idsite = ?
 		 		AND log_visit.%s > 0";
 
-		$groupBy = "log_visit.%s, idaction";
+		$groupBy = "log_visit.%s , idaction";
+
+		if( Piwik_Common::isOracle())
+		{
+			$groupBy = "log_visit.%s, " . substr( $extraSelects, 0, -1 );
+		}
 
 		$this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy,
 			"visit_entry_idaction_url", $archiveProcessing, $rankingQuery);
@@ -262,8 +321,9 @@ class Piwik_Actions_Archiving
 			);
 			$orderBy = "`" . Piwik_Archive::INDEX_PAGE_NB_HITS . "` DESC, log_action.name ASC";
 		} else {
-			$extraSelects = false;
-			$from = "log_link_visit_action";
+			$arrExtraSelects = $this->getExtraSelects("log_link_visit_action", "log_action", "log_link_visit_action.%s = log_action.idaction");
+			$extraSelects = $arrExtraSelects['extraSelects'];
+			$from = $arrExtraSelects['from'];	
 			$orderBy = false;
 		}
 
@@ -277,6 +337,11 @@ class Piwik_Actions_Archiving
 		 		AND log_link_visit_action.%s > 0";
 
 		$groupBy = "log_link_visit_action.%s, idaction";
+
+		if( Piwik_Common::isOracle())
+		{
+			$groupBy = "log_link_visit_action.%s, " . substr( $extraSelects, 0, -1 );
+		}
 
 		$this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy,
 			"idaction_url_ref", $archiveProcessing, $rankingQuery);
@@ -309,8 +374,9 @@ class Piwik_Actions_Archiving
 			);
 			$orderBy = "`" . Piwik_Archive::INDEX_PAGE_EXIT_NB_VISITS . "` DESC, log_action.name ASC";
 		} else {
-			$extraSelects = false;
-			$from = "log_visit";
+			$arrExtraSelects = $this->getExtraSelects('log_visit', "log_action", "log_visit.%s = log_action.idaction");
+			$extraSelects = $arrExtraSelects['extraSelects'];
+			$from = $arrExtraSelects['from'];	
 			$orderBy = false;
 		}
 
@@ -324,6 +390,11 @@ class Piwik_Actions_Archiving
 		 		AND log_visit.%s > 0";
 
 		$groupBy = "log_visit.%s, idaction";
+
+		if( Piwik_Common::isOracle())
+		{
+			$groupBy = "log_visit.%s, " . substr( $extraSelects, 0, -1 );
+		}
 
 		$this->archiveDayQueryProcess($select, $from, $where, $orderBy, $groupBy,
 			"visit_exit_idaction_url", $archiveProcessing, $rankingQuery);
@@ -419,8 +490,15 @@ class Piwik_Actions_Archiving
 	 */
 	private static function getRankingQueryLimit()
 	{
-		$configGeneral = Piwik_Config::getInstance()->General;
-		$configLimit = $configGeneral['archiving_ranking_query_row_limit'];
+		$config = Piwik_Config::getInstance();
+        $configGeneral = $config->General;
+        
+		// overriding configuration for ranking_query in case
+		// Oracle is used until implementation is working ;(
+        // @TODO Ancud-IT GmbH  implement ranking query statement for Oracle
+        $configLimit = Piwik_Common::isOracle() ? 
+                0 : $configGeneral['archiving_ranking_query_row_limit'];
+		
 		return $configLimit == 0 ? 0 : max(
 			$configLimit,
 			$configGeneral['datatable_archiving_maximum_rows_actions'],

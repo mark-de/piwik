@@ -192,8 +192,8 @@ class Piwik_CustomVariables extends Piwik_Plugin
 			$keyField = "custom_var_k".$i;
 			$valueField = "custom_var_v".$i;
 			$dimensions = array($keyField, $valueField);
-			$where = "%s.$keyField != ''";
-			 
+			$where = " %s.$keyField IS NOT NULL OR %s.$keyField = ''";
+			// @TODO Ancud-IT GmbH: Empty strings violate NOT NULL cons  
 			// Custom Vars names and values metrics for visits
 			$query = $archiveProcessing->queryVisitsByDimension($dimensions, $where);
 			 
@@ -257,7 +257,8 @@ class Piwik_CustomVariables extends Piwik_Plugin
 				
 				if($mustInsertCustomVariableValue)
 				{
-					if(!isset($this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]])) $this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]] = $archiveProcessing->getNewInterestRow($onlyMetricsAvailableInActionsTable);
+					if(!isset($this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]])) 
+						$this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]] = $archiveProcessing->getNewInterestRow($onlyMetricsAvailableInActionsTable);
 					$archiveProcessing->updateInterestStats( $row, $this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]], $onlyMetricsAvailableInActionsTable);
 				}
 				
@@ -269,7 +270,8 @@ class Piwik_CustomVariables extends Piwik_Plugin
 				// for scope=visit this is allowed, since there is supposed to be one custom var value per custom variable name for a given visit
 				$doNotSumVisits = true;
 
-				if(!isset($this->interestByCustomVariables[$row[$keyField]])) $this->interestByCustomVariables[$row[$keyField]]= $archiveProcessing->getNewInterestRow($onlyMetricsAvailableInActionsTable, $doNotSumVisits);
+				if(!isset($this->interestByCustomVariables[$row[$keyField]])) 
+					$this->interestByCustomVariables[$row[$keyField]]= $archiveProcessing->getNewInterestRow($onlyMetricsAvailableInActionsTable, $doNotSumVisits);
 				$archiveProcessing->updateInterestStats( $row, $this->interestByCustomVariables[$row[$keyField]], $onlyMetricsAvailableInActionsTable, $doNotSumVisits);
 			}
 			 
@@ -283,8 +285,10 @@ class Piwik_CustomVariables extends Piwik_Plugin
 					// Handle case custom var value is empty
 					$row[$valueField] = $this->cleanCustomVarValue($row[$valueField]);
 					
-					if(!isset($this->interestByCustomVariables[$row[$keyField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']])) $this->interestByCustomVariables[$row[$keyField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']] = $archiveProcessing->getNewGoalRow($row['idgoal']);
-					if(!isset($this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']])) $this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']] = $archiveProcessing->getNewGoalRow($row['idgoal']);
+					if(!isset($this->interestByCustomVariables[$row[$keyField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']])) 
+						$this->interestByCustomVariables[$row[$keyField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']] = $archiveProcessing->getNewGoalRow($row['idgoal']);
+					if(!isset($this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']])) 
+						$this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']] = $archiveProcessing->getNewGoalRow($row['idgoal']);
 
 					$archiveProcessing->updateGoalStats( $row, $this->interestByCustomVariables[$row[$keyField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']]);
 					$archiveProcessing->updateGoalStats( $row, $this->interestByCustomVariablesAndValue[$row[$keyField]][$row[$valueField]][Piwik_Archive::INDEX_GOALS][$row['idgoal']]);

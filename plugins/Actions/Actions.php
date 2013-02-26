@@ -155,18 +155,25 @@ class Piwik_Actions extends Piwik_Plugin
         $sql = 'SELECT idaction FROM '.Piwik_Common::prefixTable('log_action').' WHERE ';
         switch ($matchType)
         {
+            // Ancud-IT GmbH		use oracle concatenation operator instead of concat
             case '=@':
                 // use concat to make sure, no %s occurs because some plugins use %s in their sql
-                $sql .= '( name LIKE CONCAT("%", ?, "%") AND type = '.$actionType.' )';
+				// @TODO Ancud-IT GmbH does it actually work?
+                $sql .= Piwik_Common::isOracle() ? 
+						" name LIKE '%' || ? || '%'  AND type = ".$actionType." " :
+						'( name LIKE CONCAT("%", ?, "%") AND type = '.$actionType.' )' ;
                 break;
             case '!@':
-                $sql .= '( name NOT LIKE CONCAT("%", ?, "%") AND type = '.$actionType.' )';
+                $sql .= Piwik_Common::isOracle() ?
+					" name NOT LIKE '%' || ? || '%'  AND type = ".$actionType." " :
+					'( name NOT LIKE CONCAT("%", ?, "%") AND type = '.$actionType.' )';
                 break;
             default:
                 throw new Exception("This match type is not available for action-segments.");
                 break;
         }
         
+		
         return array(
             // mark that the returned value is an sql-expression instead of a literal value
             'SQL' => $sql,

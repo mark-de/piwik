@@ -104,7 +104,8 @@ class Piwik_Live_Visitor
 	{
 		if(isset($this->details['idvisitor']))
 		{
-			return bin2hex($this->details['idvisitor']);
+			// Ancud-IT GmbH we get "hexstrings" from Oracle ...
+			return Piwik_Common::isOracle() ? $this->details['idvisitor'] : bin2hex($this->details['idvisitor']);
 		}
 		return false;
 	}

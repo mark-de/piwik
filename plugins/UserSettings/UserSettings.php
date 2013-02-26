@@ -278,7 +278,9 @@ class Piwik_UserSettings extends Piwik_Plugin
 		$this->archiveProcessing = $archiveProcessing;
 			
 		$recordName = 'UserSettings_configuration';
-		$labelSQL = "CONCAT(log_visit.config_os, ';', log_visit.config_browser_name, ';', log_visit.config_resolution)";
+		$labelSQL = Piwik_Common::isOracle() ?  "log_visit.config_os ||';'|| log_visit.config_browser_name ||';'|| log_visit.config_resolution" :
+			"CONCAT(log_visit.config_os, ';', log_visit.config_browser_name, ';', log_visit.config_resolution)" ;
+		// Ancud-IT GmbH replaced concat statement (not accepted with 3 params at Oracle)
 		$interestByConfiguration = $archiveProcessing->getArrayInterestForLabel($labelSQL);
 		
 		$tableConfiguration = $archiveProcessing->getDataTableFromArray($interestByConfiguration);
@@ -293,7 +295,9 @@ class Piwik_UserSettings extends Piwik_Plugin
 		destroy($tableOs);
 		
 		$recordName = 'UserSettings_browser';
-		$labelSQL = "CONCAT(log_visit.config_browser_name, ';', log_visit.config_browser_version)";
+		// Ancud-IT GmbH replaced concat
+		$labelSQL = Piwik_Common::isOracle() ? "log_visit.config_browser_name ||';'|| log_visit.config_browser_version" 
+					: "CONCAT(log_visit.config_browser_name, ';', log_visit.config_browser_version)";
 		$interestByBrowser = $archiveProcessing->getArrayInterestForLabel($labelSQL);
 		$tableBrowser = $archiveProcessing->getDataTableFromArray($interestByBrowser);
 		$archiveProcessing->insertBlobRecord($recordName, $tableBrowser->getSerialized($maximumRowsInDataTable, null, $columnToSortByBeforeTruncation));

@@ -182,21 +182,22 @@ class Piwik_Live_API
 			}
 			// The second join is a LEFT join to allow returning records that don't have a matching page title
 			// eg. Downloads, Outlinks. For these, idaction_name is set to 0
+			// Ancud-IT GmbH removed several ASses in from-clause (not possible in Oracle)
 			$sql = "
 				SELECT
 					COALESCE(log_action.type,log_action_title.type) AS type,
 					log_action.name AS url,
 					log_action.url_prefix,
-					log_action_title.name AS pageTitle,
-					log_action.idaction AS pageIdAction,
-					log_link_visit_action.idlink_va AS pageId,
-					log_link_visit_action.server_time as serverTimePretty,
-					log_link_visit_action.time_spent_ref_action as timeSpentRef
+					log_action_title.name AS `pageTitle`,
+					log_action.idaction AS `pageIdAction`,
+					log_link_visit_action.idlink_va AS `pageId`,
+					log_link_visit_action.server_time as `serverTimePretty`,
+					log_link_visit_action.time_spent_ref_action as `timeSpentRef`
 					$sqlCustomVariables
-				FROM " .Piwik_Common::prefixTable('log_link_visit_action')." AS log_link_visit_action
-					LEFT JOIN " .Piwik_Common::prefixTable('log_action')." AS log_action
+				FROM " .Piwik_Common::prefixTable('log_link_visit_action')."  log_link_visit_action
+					LEFT JOIN " .Piwik_Common::prefixTable('log_action')."  log_action
 					ON  log_link_visit_action.idaction_url = log_action.idaction
-					LEFT JOIN " .Piwik_Common::prefixTable('log_action')." AS log_action_title
+					LEFT JOIN " .Piwik_Common::prefixTable('log_action')."  log_action_title
 					ON  log_link_visit_action.idaction_name = log_action_title.idaction
 				WHERE log_link_visit_action.idvisit = ?
 				 ";
@@ -239,16 +240,17 @@ class Piwik_Live_API
 			}
 			
 			// If the visitor converted a goal, we shall select all Goals
+			// Ancud-IT GmbH		removed AS from FROM-clause
 			$sql = "
 				SELECT 
 						'goal' as type,
-						goal.name as goalName,
+						goal.name as `goalName`,
 						goal.revenue as revenue,
-						log_conversion.idlink_va as goalPageId,
-						log_conversion.server_time as serverTimePretty,
+						log_conversion.idlink_va as `goalPageId`,
+						log_conversion.server_time as `serverTimePretty`,
 						log_conversion.url as url
-				FROM ".Piwik_Common::prefixTable('log_conversion')." AS log_conversion
-				LEFT JOIN ".Piwik_Common::prefixTable('goal')." AS goal 
+				FROM ".Piwik_Common::prefixTable('log_conversion')."  log_conversion
+				LEFT JOIN ".Piwik_Common::prefixTable('goal')."  goal 
 					ON (goal.idsite = log_conversion.idsite
 						AND  
 						goal.idgoal = log_conversion.idgoal)
@@ -257,19 +259,19 @@ class Piwik_Live_API
 					AND log_conversion.idgoal > 0
 			";
 			$goalDetails = Piwik_FetchAll($sql, array($idvisit));
-
+			// Ancud-IT GmbH removed AS from FROM CLAUSE 
 			$sql = "SELECT 
 						case idgoal when ".Piwik_Tracker_GoalManager::IDGOAL_CART." then '".Piwik_Archive::LABEL_ECOMMERCE_CART."' else '".Piwik_Archive::LABEL_ECOMMERCE_ORDER."' end as type,
-						idorder as orderId,
+						idorder as `orderId`,
 						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue')." as revenue,
-						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_subtotal')." as revenueSubTotal,
-						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_tax')." as revenueTax,
-						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_shipping')." as revenueShipping,
-						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_discount')." as revenueDiscount,
+						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_subtotal')." as `revenueSubTotal`,
+						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_tax')." as `revenueTax`,
+						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_shipping')." as `revenueShipping`,
+						".Piwik_ArchiveProcessing_Day::getSqlRevenue('revenue_discount')." as `revenueDiscount`,
 						items as items,
 						
-						log_conversion.server_time as serverTimePretty
-					FROM ".Piwik_Common::prefixTable('log_conversion')." AS log_conversion
+						log_conversion.server_time as `serverTimePretty`
+					FROM ".Piwik_Common::prefixTable('log_conversion')."  log_conversion
 					WHERE idvisit = ?
 						AND idgoal <= ".Piwik_Tracker_GoalManager::IDGOAL_ORDER;
 			$ecommerceDetails = Piwik_FetchAll($sql, array($idvisit));
@@ -278,11 +280,19 @@ class Piwik_Live_API
 			{
 				if($ecommerceDetail['type'] == Piwik_Archive::LABEL_ECOMMERCE_CART)
 				{
+					if(!Piwik_Common::isOracle()) 
+					{
 					unset($ecommerceDetail['orderId']);
+					}
+					
 					unset($ecommerceDetail['revenueSubTotal']);
 					unset($ecommerceDetail['revenueTax']);
 					unset($ecommerceDetail['revenueShipping']);
 					unset($ecommerceDetail['revenueDiscount']);
+					
+                    // but don't unset 'orderId' we use pseudo-order-ids as deduplication workaround
+                    // in log_conversion
+                    // by unique-key-constraints in Oracle goes to far ...
 				}
 			
 				// 25.00 => 25
@@ -299,29 +309,34 @@ class Piwik_Live_API
 			}
 			
 			// Enrich ecommerce carts/orders with the list of products 
+			// Ancud-IT GmbH removed AS from FROM CLAUSE
 			usort($ecommerceDetails, array($this, 'sortByServerTime'));
 			foreach($ecommerceDetails as $key => &$ecommerceConversion)
 			{
+				$logAction = Piwik_Common::prefixTable('log_action');
+				$logConversionItem = Piwik_Common::prefixTable('log_conversion_item');
+				
 				$sql = "SELECT 
-							log_action_sku.name as itemSKU,
-							log_action_name.name as itemName,
-							log_action_category.name as itemCategory,
+							log_action_sku.name as `itemSKU`,
+							log_action_name.name as `itemName`,
+							log_action_category.name as `itemCategory`,
 							".Piwik_ArchiveProcessing_Day::getSqlRevenue('price')." as price,
 							quantity as quantity
-						FROM ".Piwik_Common::prefixTable('log_conversion_item')."
-							INNER JOIN " .Piwik_Common::prefixTable('log_action')." AS log_action_sku
-							ON  idaction_sku = log_action_sku.idaction
-							LEFT JOIN " .Piwik_Common::prefixTable('log_action')." AS log_action_name
-							ON  idaction_name = log_action_name.idaction
-							LEFT JOIN " .Piwik_Common::prefixTable('log_action')." AS log_action_category
-							ON idaction_category = log_action_category.idaction
+						FROM " . $logConversionItem . "
+							INNER JOIN " .$logAction."  log_action_sku
+							ON  " . $logConversionItem . ".idaction_sku = log_action_sku.idaction
+							LEFT JOIN " .$logAction."  log_action_name
+							ON  " . $logConversionItem . ".idaction_name = log_action_name.idaction
+							LEFT JOIN " .$logAction."  log_action_category
+							ON " . $logConversionItem . ".idaction_category = log_action_category.idaction
 						WHERE idvisit = ? 
 							AND idorder = ?
 							AND deleted = 0
 				";
+				
 				$bind = array($idvisit, isset($ecommerceConversion['orderId']) 
 											? $ecommerceConversion['orderId'] 
-											: Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONED_CART
+											: (string) Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONED_CART
 				);
 				
 				$itemsDetails = Piwik_FetchAll($sql, $bind);
@@ -369,8 +384,10 @@ class Piwik_Live_API
 						$details['icon'] = null;
 					break;
 				}
-				$dateTimeVisit = Piwik_Date::factory($details['serverTimePretty'], $timezone);
-				$details['serverTimePretty'] = $dateTimeVisit->getLocalized(Piwik_Translate('CoreHome_ShortDateFormat') .' %time%'); 
+				
+				$serverTimePrettyIdx =  'serverTimePretty';
+				$dateTimeVisit = Piwik_Date::factory($details[$serverTimePrettyIdx], $timezone);
+				$details[$serverTimePrettyIdx] = $dateTimeVisit->getLocalized(Piwik_Translate('CoreHome_ShortDateFormat') .' %time%'); 
 			}
 			$visitorDetailsArray['goalConversions'] = count($goalDetails);
 			
@@ -504,21 +521,21 @@ class Piwik_Live_API
 		$from = "log_visit";
 		$subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy);
 		
-		$sqlLimit = $filter_limit >= 1 ? " LIMIT ".(int)$filter_limit : "";
+		
+		$db = Zend_Registry::get('db');
 		
 		// Group by idvisit so that a visitor converting 2 goals only appears once
-		$sql = "
-			SELECT sub.* 
-			FROM ( 
-				".$subQuery['sql']."
-				$sqlLimit
-			) AS sub
-			GROUP BY sub.idvisit
-			ORDER BY $orderByParent
-		"; 
+		// Ancud-IT GmbH: moved limit function to $db->limit()
+		// original code was grouping by primary key (??)
+		
+		$sql = "SELECT sub.* FROM ("
+				. $subQuery['sql'] ."
+				) sub ORDER BY $orderByParent "; 
+		
+		$sql = $filter_limit >= 1 ? $db->limit($sql, (int)$filter_limit) : $sql;
 		
 		try {
-			$data = Piwik_FetchAll($sql, $subQuery['bind']);
+			$data = $db->fetchAll($sql, $subQuery['bind']);
 		} catch(Exception $e) {
 			echo $e->getMessage();exit;
 		}

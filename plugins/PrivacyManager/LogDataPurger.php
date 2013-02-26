@@ -90,7 +90,10 @@ class Piwik_PrivacyManager_LogDataPurger
 		}
 		
 		// optimize table overhead after deletion
+		if (!Piwik_Common::isOracle())
+		{
 		Piwik_OptimizeTables($logTables);
+	}
 	}
 	
 	/**
@@ -166,13 +169,16 @@ class Piwik_PrivacyManager_LogDataPurger
 		
 		// select highest idvisit to delete from
 		$dateStart = Piwik_Date::factory("today")->subDay($this->deleteLogsOlderThan);
+		
 		$sql = "SELECT idvisit
 		          FROM $logVisit
 		         WHERE '".$dateStart->toString('Y-m-d H:i:s')."' > visit_last_action_time
 		           AND idvisit <= ?
 		           AND idvisit > ?
-		      ORDER BY idvisit DESC
-		         LIMIT 1";
+		      ORDER BY idvisit DESC ";
+		// Ancud-IT GmbH moved LIMIT to Zendfunction
+		$db = Zend_Registry::get('db');
+		$sql = $db->limit( $sql, 1 );
 		
 		return Piwik_SegmentedFetchFirst($sql, $maxIdVisit, 0, -self::$selectSegmentSize);
 	}
@@ -183,12 +189,26 @@ class Piwik_PrivacyManager_LogDataPurger
 		return (int)Piwik_FetchOne($sql, array($maxIdVisit));
 	}
 	
+	// Ancud-IT GmbH
 	private function createTempTable()
 	{
-		$sql = "CREATE TEMPORARY TABLE ".Piwik_Common::prefixTable(self::TEMP_TABLE_NAME)." (
-					idaction INT(11),
+		if (Piwik_Common::isOracle())
+		{
+            try {            
+                Piwik_Query(" DROP TABLE " . Piwik_Common::prefixTable(self::TEMP_TABLE_NAME) );
+            } catch( Exception $ex ) {}
+                    
+            $sql = "CREATE GLOBAL TEMPORARY TABLE ".Piwik_Common::prefixTable(self::TEMP_TABLE_NAME)." (
+					idaction NUMBER(11,0),
 					PRIMARY KEY (idaction)
 				)";
+            
+		}
+		else {
+			$sql = "CREATE TEMPORARY TABLE " . Piwik_Common::prefixTable(self::TEMP_TABLE_NAME) 
+                    . " ( idaction INT(11), PRIMARY KEY (idaction) )";
+            
+        }
 		Piwik_Query($sql);
 	}
 	
@@ -219,7 +239,12 @@ class Piwik_PrivacyManager_LogDataPurger
 			foreach ($columns as $col)
 			{
 				$select = "SELECT $col FROM ".Piwik_Common::prefixTable($table)." WHERE $idCol >= ? AND $idCol < ?";
-				$sql = "INSERT IGNORE INTO $tempTableName $select";
+				$ignore = Piwik_Common::isOracle()? '' : 'IGNORE ';
+				$sql = "INSERT "
+						.	$ignore 
+						.	" INTO "
+						.	$tempTableName . " "
+						.	$select;
 				
 				if ($olderThan)
 				{
@@ -232,8 +257,16 @@ class Piwik_PrivacyManager_LogDataPurger
 					$finish = Piwik_FetchOne("SELECT MAX($idCol) FROM ".Piwik_Common::prefixTable($table));
 				}
 				
+				try {
 				Piwik_SegmentedQuery($sql, $start, $finish, self::$selectSegmentSize);
+                } catch (Exception $ex)
+                {
+                    // Ancud-IT GmbH check for ora-errorcodes
+                    if( $ex->getCode() != 1400 && $ex->getCode() != 1 )
+                        throw( $ex ); 
 			}
+                
+		}
 		}
 		
 		// allow code to be executed after data is inserted. for concurrency testing purposes.
@@ -267,10 +300,26 @@ class Piwik_PrivacyManager_LogDataPurger
 	{
 		list($logActionTable, $tempTableName) = Piwik_Common::prefixTables("log_action", self::TEMP_TABLE_NAME);
 		
+        if (Piwik_Common::isOracle())
+        {
+            $deleteSql = "DELETE FROM " 
+                        .	$logActionTable 
+                        .	" WHERE " . $logActionTable . ".idaction IN "
+                        .	"( "
+                        .	 "SELECT log.idaction "
+                        .	      "FROM " . $logActionTable . " log " 
+                        .	     "LEFT JOIN " . $tempTableName . " tmp ON tmp.idaction = log.idaction "
+                        .	     "WHERE tmp.idaction = NULL"
+                        .	")"; 
+                      
+        } else {
 		$deleteSql = "DELETE LOW_PRIORITY QUICK IGNORE $logActionTable
 						FROM $logActionTable
 				   LEFT JOIN $tempTableName tmp ON tmp.idaction = $logActionTable.idaction
 					   WHERE tmp.idaction IS NULL";
+        }
+		
+		
 		
 		Piwik_Query($deleteSql);
 	}

@@ -116,7 +116,12 @@ class Piwik_Login extends Piwik_Plugin
 		$md5Password = $info['md5Password'];
 		$rememberMe = $info['rememberMe'];
 		
-		$tokenAuth = Piwik_UsersManager_API::getInstance()->getTokenAuth($login, $md5Password);
+		/**
+		 * Ancud-IT GmbH 2013
+		 * if 'login' is null, a tokenauth-Value is stored at 'md5Password'
+		 */
+		$tokenAuth = is_null($login) ? $md5Password :
+			Piwik_UsersManager_API::getInstance()->getTokenAuth($login, $md5Password);
 
 		$auth = Zend_Registry::get('auth');
 		$auth->setLogin($login);
@@ -134,6 +139,7 @@ class Piwik_Login extends Piwik_Plugin
 			throw new Exception(Piwik_Translate('Login_LoginPasswordNotCorrect'));
 		}
 
+		$login = $authResult->getLogin();
 		$cookie->set('login', $login);
 		$cookie->set('token_auth', $auth->getHashTokenAuth($login, $authResult->getTokenAuth()));
 		$cookie->setSecure(Piwik::isHttps());

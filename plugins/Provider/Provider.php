@@ -79,14 +79,16 @@ class Piwik_Provider extends Piwik_Plugin
 	function install()
 	{
 		// add column hostname / hostname ext in the visit table
-		$query = "ALTER IGNORE TABLE `".Piwik_Common::prefixTable('log_visit')."` ADD `location_provider` VARCHAR( 100 ) NULL";
+		$ignore = Piwik_Common::isOracle()? '' : 'IGNORE ';
+		
+		$query = "ALTER " . $ignore . "TABLE `".Piwik_Common::prefixTable('log_visit')."` ADD `location_provider` VARCHAR( 100 ) NULL";
 		
 		// if the column already exist do not throw error. Could be installed twice...
 		try {
 			Piwik_Exec($query);
 		}
 		catch(Exception $e) {
-			if(!Zend_Registry::get('db')->isErrNo($e, '1060'))
+			if( $e->getCode() != 1430 ) // Ancud-IT GmbH col does already exist!
 			{
 				throw $e;
 			}
@@ -94,6 +96,9 @@ class Piwik_Provider extends Piwik_Plugin
 
 	}
 	
+	/**
+	 * uninstall the plugin
+	 */
 	function uninstall()
 	{
 		// add column hostname / hostname ext in the visit table

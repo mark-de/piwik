@@ -604,11 +604,21 @@ class Piwik_PDFReports extends Piwik_Plugin
         	}
 		}
 		catch(Exception $e) {
-    		if(!Zend_Registry::get('db')->isErrNo($e, '1050'))
-			{
+    		// mysql code error 1050:table already exists
+			// see bug #153 http://dev.piwik.org/trac/ticket/153
+			// Ancud-IT GmbH    
+			// -	Oracle error code for this is 0955  
+			// -	the Oracle-adapter throws a Zend_Db_Exception
+			//		if it finds a DDL-Statement,
+			//		including the error code!
+			if( Piwik_Common::isOracle()) {
+				if( $e->getCode() != 955 ) {
 				throw $e;
 			}
+			} else if( !Zend_Registry::get('db')->isErrNo($e, '1050')) {
+				throw $e;
 		}
+	}
 	}
 
 	private static function checkAdditionalEmails($additionalEmails)

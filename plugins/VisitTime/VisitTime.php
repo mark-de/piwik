@@ -16,6 +16,33 @@
  */
 class Piwik_VisitTime extends Piwik_Plugin
 {
+	private $sqlHourFunction;
+	
+	function __construct()
+	{
+		if( Piwik_Common::isOracle()) 
+		{
+			$this->setSqlHourFunction( 'EXTRACT( HOUR FROM ' );
+		} else {
+			$this->setSqlHourFunction( 'HOUR(' );
+		}
+	}
+
+	public function setSqlHourFunction($sqlHourFunction)
+	{
+		$this->sqlHourFunction = $sqlHourFunction;
+	}
+
+    public function getSqlHourFunction()
+	{
+		return $this->sqlHourFunction;
+	}
+	
+	public function extractHours( $field )
+	{
+		return $this->getSqlHourFunction() . $field . ')';
+	}
+	
 	public function getInformation()
 	{
 		$info = array(
@@ -118,7 +145,7 @@ class Piwik_VisitTime extends Piwik_Plugin
 		        'category' => 'Visit',
 		        'name' => Piwik_Translate('VisitTime_ColumnServerTime'),
 		        'segment' => 'visitServerHour',
-		        'sqlSegment' => 'HOUR(log_visit.visit_last_action_time)',
+		        'sqlSegment' => $this->extractHours('log_visit.visit_last_action_time'),
 				'acceptedValues' => $acceptedValues
        );
        $segments[] = array(
@@ -126,7 +153,7 @@ class Piwik_VisitTime extends Piwik_Plugin
 		        'category' => 'Visit',
 		        'name' => Piwik_Translate('VisitTime_ColumnLocalTime'),
 		        'segment' => 'visitLocalHour',
-		        'sqlSegment' => 'HOUR(log_visit.visitor_localtime)',
+		        'sqlSegment' => $this->extractHours('log_visit.visitor_localtime'),
        			'acceptedValues' => $acceptedValues
        );
 	}
@@ -165,10 +192,10 @@ class Piwik_VisitTime extends Piwik_Plugin
 	
 	protected function archiveDayAggregateVisits($archiveProcessing)
 	{
-		$labelSQL = "HOUR(log_visit.visitor_localtime)";
+		$labelSQL = $this->extractHours("log_visit.visitor_localtime");
 		$this->interestByLocalTime = $archiveProcessing->getArrayInterestForLabel($labelSQL);
 		
-		$labelSQL = "HOUR(log_visit.visit_last_action_time)";
+		$labelSQL = $this->extractHours("log_visit.visit_last_action_time");
 		$this->interestByServerTime = $archiveProcessing->getArrayInterestForLabel($labelSQL);
 	}
 	
@@ -188,7 +215,7 @@ class Piwik_VisitTime extends Piwik_Plugin
 	
 	protected function archiveDayAggregateGoals($archiveProcessing)
 	{
-		$query = $archiveProcessing->queryConversionsByDimension("HOUR(log_conversion.server_time)");
+		$query = $archiveProcessing->queryConversionsByDimension($this->extractHours("log_conversion.server_time"));
 		
 		if($query === false) return;
 		

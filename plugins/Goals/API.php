@@ -286,8 +286,61 @@ class Piwik_Goals_API
 		// Product conversion rate = orders / visits 
 		$dataTable->queueFilter('ColumnCallbackAddColumnPercentage', array('conversion_rate', $ordersColumn, 'nb_visits', Piwik_Tracker_GoalManager::REVENUE_PRECISION));
 		
+		/**
+		 * keep this for debugging ...
+		 * Ancud-IT GmbH 2013
+		 * 
+		 * 
+		 
+		$unpackedDataTable = $this->unpackDataTable($dataTable);
+		
+	    foreach( $unpackedDataTable as $singleDataTable )
+		{
+			$rows = $singleDataTable->getRows();
+			
+			foreach( $rows as $row )
+			{
+				var_dump( $row->getColumns());
+			}
+			
+		}	
+		
+		 * 
+		 */
 		return $dataTable;
 	}
+	
+	
+	/*
+	 * uncomment for debugging
+	 * Ancud-IT GmbH 2013 
+	 * 
+	 
+	private function unpackDataTable( $dataTable ) 
+	{
+		$datArr = array();
+		$datArr[] = $dataTable;
+		
+		if ($dataTable instanceof Piwik_DataTable_Array ) 
+		{
+			$tableArray = $dataTable->getArray();
+			
+			foreach ($tableArray as $tableArrayItem )
+			{
+				$returnedArr = $this->unpackDataTable($tableArrayItem);
+				$unpackedDataTables[] = $returnedArr[0];
+			}
+			
+			$datArr = $unpackedDataTables;
+		}
+		
+		return $datArr;
+	}
+	
+	 * 
+	 * 
+	 */
+	
 	
 	protected function renameNotDefinedRow($dataTable, $notDefinedStringPretty)
 	{

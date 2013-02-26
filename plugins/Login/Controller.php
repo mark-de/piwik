@@ -122,11 +122,25 @@ class Piwik_Login_Controller extends Piwik_Controller
 		}
 
 		$login = Piwik_Common::getRequestVar('login', null, 'string');
-		if($login == Piwik_Config::getInstance()->superuser['login'])
-		{
-			throw new Exception(Piwik_TranslateException('Login_ExceptionInvalidSuperUserAuthenticationMethod', array("logme")));
+		
+//		if($login == Piwik_Config::getInstance()->superuser['login'])
+//		{
+//			throw new Exception(Piwik_TranslateException('Login_ExceptionInvalidSuperUserAuthenticationMethod', array("logme")));
+//		}
+
+		$urlToRedirect = $this->getUrlToRedirect();
+		
+		$this->authenticateAndRedirect($login, $password, false, $urlToRedirect);
 		}
 
+
+	/**
+	 * helpermethod to get redirect-url
+	 * Ancud-IT GmbH
+	 * @return	string
+	 */
+	private function getUrlToRedirect()
+	{
 		$currentUrl = 'index.php';
 
 		if(($idSite = Piwik_Common::getRequestVar('idSite', false, 'int')) !== false)
@@ -137,9 +151,31 @@ class Piwik_Login_Controller extends Piwik_Controller
 		$urlToRedirect = Piwik_Common::getRequestVar('url', $currentUrl, 'string');
 		$urlToRedirect = Piwik_Common::unsanitizeInputValue($urlToRedirect);
 
-		$this->authenticateAndRedirect($login, $password, false, $urlToRedirect);
+		return $urlToRedirect;
 	}
 
+	
+	/**
+	 * helpermethod to enable SSO by a single parameter
+	 * Ancud-IT GmbH
+	 * @throws generic Exception 
+	 */
+	function logByToken()
+	{
+		self::checkForceSslLogin();
+		
+		$tokenAuth = Piwik_Common::getRequestVar("tokenauth", null, "string");
+		
+		if(strlen($tokenAuth) != 32)
+		{
+			throw new Exception('invalid tokenauth');
+		}
+		
+		$urlToRedirect = $this->getUrlToRedirect();
+
+		$this->authenticateAndRedirect(null, $tokenAuth, false, $urlToRedirect);
+	}
+	
 	/**
 	 * Authenticate user and password.  Redirect if successful.
 	 *

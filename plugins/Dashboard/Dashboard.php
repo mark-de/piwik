@@ -37,9 +37,44 @@ class Piwik_Dashboard extends Piwik_Plugin
 	}
 
 	public static function getAllDashboards($login) {
-		$dashboards = Piwik_FetchAll('SELECT iddashboard, name
+		
+        /*
+         * Ancud-IT GmbH
+         * Some fallback for situations, where Piwik > 1.8 is installed 
+         * on top of Piwik 1.7 tablespace. The installer clears/updates old core table
+         * but leaves plugin tables untouched, the standard updater doesn't
+         * provide something for this situation.
+         */
+        
+        $sqlSelect = 'SELECT iddashboard, name
 									  FROM '.Piwik_Common::prefixTable('user_dashboard') .
-									' WHERE login = ? ORDER BY iddashboard', array($login));
+                                ' WHERE login = ? ORDER BY iddashboard';
+        try 
+        {
+            $dashboards = Piwik_FetchAll($sqlSelect, array($login));
+
+
+        } catch ( Exception $ex)
+        {
+            if( $ex->getCode() != 904 )
+            {
+                throw $ex;
+            }
+
+
+            $sql = "ALTER TABLE " . Piwik_Common::prefixTable('user_dashboard') 
+                . " ADD NAME VARCHAR(100) NULL";
+
+            Piwik_Query($sql);
+
+            $dashboards = Piwik_FetchAll($sqlSelect, array($login));
+
+        }
+        
+        /*
+         * Ancud-IT GmbH end
+         */
+        
 		$pos = 0;
 		$nameless = 1;
 		foreach ($dashboards AS &$dashboard) {
@@ -154,11 +189,19 @@ class Piwik_Dashboard extends Piwik_Plugin
 		} catch(Exception $e){
 			// mysql code error 1050:table already exists
 			// see bug #153 http://dev.piwik.org/trac/ticket/153
-			if(!Zend_Registry::get('db')->isErrNo($e, '1050'))
-			{
+			// Ancud-IT GmbH    
+			// -	Oracle error code for this is 0955  
+			// -	the Oracle-adapter throws a Zend_Db_Exception
+			//		if it finds a DDL-Statement,
+			//		including the error code!
+			if( Piwik_Common::isOracle()) {
+				if( $e->getCode() != 955 ) {
 				throw $e;
 			}
+			} else if( !Zend_Registry::get('db')->isErrNo($e, '1050')) {
+				throw $e;
 		}
+	}
 	}
 	
 	public function uninstall()

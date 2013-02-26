@@ -251,10 +251,11 @@ class Piwik_PDFReports_API
 		}
 		
 		// Joining with the site table to work around pre-1.3 where reports could still be linked to a deleted site
+		// Ancud-IT GmbH   used explicit join condition here, using USING didn't work here in Oracle for whatever reason !
 		$reports = Piwik_FetchAll("SELECT * 
 								FROM ".Piwik_Common::prefixTable('report')."
-									JOIN ".Piwik_Common::prefixTable('site')."
-									USING (idsite)
+									INNER JOIN ".Piwik_Common::prefixTable('site')."
+									ON ".Piwik_Common::prefixTable('site').".idsite = ".Piwik_Common::prefixTable('report').".idsite
 								WHERE deleted = 0
 									$sqlWhere", $bind);
 		// When a specific report was requested and not found, throw an error
