@@ -37,7 +37,7 @@ LD_LIBRARY_PATH=$ORACLE_HOME/lib && export LD_LIBRARY_PATH
 These parameters are also required in your shell environment, whenever
 you use php in CLI-mode, eg. for achiving cronjobs or testing.
 
-If you use phpunit for testing and your php.ini uses a separate 
+If you use phpunit for testing and your installation of PHP uses a separate 
 php.ini for running PHP in CLI-mode, make sure your oci8-extension
 is loaded in CLI-mode.
 
