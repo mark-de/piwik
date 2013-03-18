@@ -80,6 +80,13 @@ class Piwik_Option
 		return $value;
 	}
 	
+	
+	private function checkForNullConstraint()
+	{
+		$sql = "ALTER TABLE " . Piwik_Common::prefixTable('option') . " MODIFY OPTION_VALUE NULL";
+		Piwik_Query($sql);
+	}
+	
 	/**
 	 * Sets the option value in the database and cache
 	 *
@@ -106,6 +113,8 @@ class Piwik_Option
 			Piwik_Query($sql, $bind);		
 			
 		} else {
+			
+			$this->checkForNullConstraint();
 			
 			$sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " . 
 				"(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"

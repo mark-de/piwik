@@ -44,7 +44,15 @@ class Piwik_Common
 	public static function isOracle()
 	{
 		$config = Piwik_Config::getInstance();
-		return isset($config->database['dbora']);
+		$configOracle = $config->database['dbora'];
+		
+		// Ancud-IT 2013
+		// Piwik_Config might not be initialized, check for 
+		// adapter type, too
+		// @TODO dbora parameter is a preliminary solution
+		
+		return $configOracle ? $configOracle 
+				: Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle;
 	}
 
 	/**
@@ -322,10 +330,23 @@ class Piwik_Common
 		// To avoid parallel requests triggering the Scheduled Tasks,
 		// Get last time tasks started executing
 		$cache = Piwik_Common::getCacheGeneral();
+		$nextCleanupTime = $cache['lastTrackerCronRun'] + $minimumInterval;
+		
 		if($minimumInterval <= 0
 			|| empty($cache['isBrowserTriggerArchivingEnabled']))
 		{
 			printDebug("-> Scheduled tasks not running in Tracker: Browser archiving is disabled.");
+			
+			//Ancud-IT for clustered /tmp-dirs we need to regenerate the tracker cache now and then!
+			if($nextCleanupTime < $now)
+			{
+				$cache['lastTrackerCronRun'] = $now;
+				Piwik_Common::initCorePiwikInTrackerMode();
+				Piwik_Common::deleteTrackerCache();
+				Piwik_Common::setCacheGeneral( $cache );
+				Piwik_SetOption('lastTrackerCronRun', $cache['lastTrackerCronRun']);
+			}
+			
 			return;
 		}
 		$nextRunTime = $cache['lastTrackerCronRun'] + $minimumInterval;

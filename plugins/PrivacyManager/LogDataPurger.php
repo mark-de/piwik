@@ -194,22 +194,24 @@ class Piwik_PrivacyManager_LogDataPurger
 	{
 		if (Piwik_Common::isOracle())
 		{
-            try {            
-                Piwik_Query(" DROP TABLE " . Piwik_Common::prefixTable(self::TEMP_TABLE_NAME) );
-            } catch( Exception $ex ) {}
-                    
-            $sql = "CREATE GLOBAL TEMPORARY TABLE ".Piwik_Common::prefixTable(self::TEMP_TABLE_NAME)." (
+            $sql = "CREATE GLOBAL TEMPORARY TABLE ".Piwik_Common::prefixTable(self::TEMP_TABLE_NAME)
+					.	"   (
 					idaction NUMBER(11,0),
 					PRIMARY KEY (idaction)
 				)";
-            
 		}
-		else {
+		else 
+		{
 			$sql = "CREATE TEMPORARY TABLE " . Piwik_Common::prefixTable(self::TEMP_TABLE_NAME) 
                     . " ( idaction INT(11), PRIMARY KEY (idaction) )";
-            
         }
+            
+		try 
+		{
 		Piwik_Query($sql);
+		} catch( Exception $ex ) {
+			// table might already exist! Ancud-IT
+	}
 	}
 	
 	private function getMaxIdsInLogTables()
@@ -257,6 +259,11 @@ class Piwik_PrivacyManager_LogDataPurger
 					$finish = Piwik_FetchOne("SELECT MAX($idCol) FROM ".Piwik_Common::prefixTable($table));
 				}
 				
+				//	Ancud-IT for debugging
+				//	$totalNumber = Piwik_Query("SELECT * from " .  Piwik_Common::prefixTable($table))->rowCount();
+				//	$numberOfRows = Piwik_Query($select, array($start, $finish))->rowCount();
+				//	echo "\n$select\nSTART: $start\nFINISH: $finish\nNr. of ActionsToKeep is " . $numberOfRows . " \nTotalNumber is $totalNumber\n" ;
+					
 				try {
 				Piwik_SegmentedQuery($sql, $start, $finish, self::$selectSegmentSize);
                 } catch (Exception $ex)
@@ -300,6 +307,11 @@ class Piwik_PrivacyManager_LogDataPurger
 	{
 		list($logActionTable, $tempTableName) = Piwik_Common::prefixTables("log_action", self::TEMP_TABLE_NAME);
 		
+		// Ancud-IT  for debugging
+		//		$sql = "SELECT * FROM " . $tempTableName;
+		//		$tmpTableSize = Piwik_Query($sql)->rowCount();
+		//		echo "\n TempTableSize: " . $tmpTableSize .  " \n";
+        
         if (Piwik_Common::isOracle())
         {
             $deleteSql = "DELETE FROM " 
@@ -307,9 +319,9 @@ class Piwik_PrivacyManager_LogDataPurger
                         .	" WHERE " . $logActionTable . ".idaction IN "
                         .	"( "
                         .	 "SELECT log.idaction "
-                        .	      "FROM " . $logActionTable . " log " 
+                        .	     "FROM " . $logActionTable . " log " 
                         .	     "LEFT JOIN " . $tempTableName . " tmp ON tmp.idaction = log.idaction "
-                        .	     "WHERE tmp.idaction = NULL"
+                        .	     "WHERE tmp.idaction IS NULL"
                         .	")"; 
                       
         } else {
@@ -319,9 +331,11 @@ class Piwik_PrivacyManager_LogDataPurger
 					   WHERE tmp.idaction IS NULL";
         }
 		
-		
-		
 		Piwik_Query($deleteSql);
+		
+		// Ancud-IT for debugging
+		// $rowCount = Piwik_Query($deleteSql)->rowCount();
+		// echo "\n Anzahl gelöschter Zeilen aus LOG_ACTION: " .  $rowCount . " \n";
 	}
 	
 	private function getIdActionColumns()

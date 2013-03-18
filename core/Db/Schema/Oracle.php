@@ -138,6 +138,28 @@ class Piwik_Db_Schema_Oracle extends Piwik_Db_Schema_Myisam
 		foreach($tablesAlreadyInstalled as $table)
 		{
 			Piwik_Query("TRUNCATE TABLE " . $table);
+		
+			$seqName = strtoupper($table . '_SEQ');
+			$seqExists = 0;
+			$nextval = false;
+			$seqExistsStmt = Piwik_Query("SELECT SEQUENCE_NAME FROM USER_SEQUENCES WHERE SEQUENCE_NAME = ?", array($seqName));
+			$seqExists = $seqExistsStmt->fetch();
+			if( $seqExists !== false )
+			{
+				$sql = "SELECT " . $seqName.".NEXTVAL FROM DUAL";
+				$stmt = Piwik_Query($sql);
+				$nextval = $stmt->fetch();
+			}
+			
+			$resetSequenceSql;
+			$restoreSequenceIncrementSql;
+			if( $nextval['nextval'] > 0 ){
+				$resetSequenceSql = "ALTER SEQUENCE " . $seqName . " MINVALUE 0 INCREMENT BY " . -($nextval['nextval'] );
+				Piwik_Query($resetSequenceSql);
+				Piwik_Query("SELECT " . $seqName . ".NEXTVAL FROM DUAL");
+				$restoreSequenceIncrementSql = "ALTER SEQUENCE " . $seqName . " INCREMENT BY 1";
+				Piwik_Query($restoreSequenceIncrementSql);
+			}
 		}
 	}
 

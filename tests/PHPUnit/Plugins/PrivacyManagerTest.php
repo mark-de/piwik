@@ -718,21 +718,21 @@ class PrivacyManagerTest extends IntegrationTestCase
 		$ora = $db instanceof Piwik_Db_Adapter_Oracle;
         // one metric for jan & one for feb
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][0])),
-                    array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 1, 100));
-                   // array(self::GARBAGE_FIELD, $janDate1, $janDate1, $ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', 100));
+				// array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 1, 100));
+                   array(self::GARBAGE_FIELD, $janDate1, $janDate1, $ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', 100));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['numeric'][1])),
-                    array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 1, 200));
-                  //  array(self::GARBAGE_FIELD, $febDate1, $febDate1, $ora ? 2 : $janDate1, '2012-09-19 15:33:44.00', 200));
+				// array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 1, 200));
+                   array(self::GARBAGE_FIELD, $febDate1, $febDate1, $ora ? 2 : $febDate1, '2012-09-19 15:33:46.00', 200));
         
         // add garbage reports
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][0])),
-					array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 10,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
-                //    array(self::GARBAGE_FIELD, $janDate1, $janDate1,
-				//		$ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+				//	array(self::GARBAGE_FIELD, $janDate1, $janDate1, $janDate1, 10,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+                  array(self::GARBAGE_FIELD, $janDate1, $janDate1,
+						$ora ? 1 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
         Piwik_Query(sprintf($sql, Piwik_Common::prefixTable($archiveTables['blob'][1])),
-					array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 20,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
-                  //  array(self::GARBAGE_FIELD, $febDate1, $febDate1, 
-					//	$ora ? 2 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+				//	array(self::GARBAGE_FIELD, $febDate1, $febDate1, $febDate1, 20,  $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
+                    array(self::GARBAGE_FIELD, $febDate1, $febDate1, 
+						$ora ? 2 : $janDate1, '2012-09-19 15:33:44.00', $ora? bin2hex(gzcompress('blobval')) : 'blobval'));
     }
     
     protected function _checkNoDataChanges()

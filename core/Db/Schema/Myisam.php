@@ -346,7 +346,7 @@ class Piwik_Db_Schema_Myisam implements Piwik_Db_Schema_Interface
 
 			'option' => "CREATE TABLE `{$prefixTables}option` (
 								option_name VARCHAR( 255 ) NOT NULL,
-								option_value LONGTEXT NOT NULL,
+								option_value LONGTEXT NULL,
 								autoload TINYINT NOT NULL DEFAULT '1',
 								PRIMARY KEY ( option_name ),
 								INDEX autoload( autoload )
