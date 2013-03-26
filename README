@@ -59,3 +59,405 @@ Dbstats-plugin/providing Metadata is currently not supported due to limitation o
 Further Information
 ===================
 see README.md in master branch!
+
+
+Current testresults
+===================
+
+
+***********************************
+***********************************
+CURRENT TEST STATUS OF PIWIK-ORACLE
+***********************************
+***********************************
+
+based on Piwik 1.9.2
+
+Results of a "full" run 
+(Units, Plugins, Integration)
+
+*****
+MySql
+*****
+
+Tested also on MySql, boils down to this:
+
+Tests: 3003, Assertions: 10911, Failures: 36, Incomplete: 7, Skipped: 5.
+
+
+
+Summary - things that matter most first:
+
+
+1) Test_Piwik_Integration_PeriodIsRange_DateIsLastN_MetadataAndNormalAPI::testApi
+with data sets #0-#11
+
+These 12 tests are failing here, but ALSO failed with an
+unpatched "original" Piwik 1.9.2. !!
+
+NOTE: This tests do not (!) fail on Oracle, so I accidentally fixed sth.
+that was broken for MySQL. Further investigation required.
+
+
+2) SegmentTest, multiple failures
+
+About 14 failures, because I had to remove the "AS"-keyword from the FROM-clause,
+see example below. A case to adapt the expected files.
+"AS" isn't allowed in a FROM-clause Oracle-SQL.
+
+--> Should provide another "expected"-files 
+
+
+3) ArchiveProcessingTest::testTableInsertBatchIterate/testTableInsertBatchIterateBlob
+
+
+An Exception is expected, but not thrown    ... 
+... the $ignoreWhenDuplicate parameter isn't currently evaluated correctly
+in Piwik::tableInsertBatchIterate()/Piwik::tableInsertBatchIterateBlob()
+
+
+4)  SEOTest::test_API
+domain-age expected non-zero rank, got []
+Failed asserting that a NULL is not empty.
+
+
+
+******
+Oracle
+******
+
+
+Tests: 3004, Assertions: 10961, Failures: 74, Incomplete: 8, Skipped: 4.
+
+Taking into account all false positives, it doesn't look much worse
+than the MySQL-side.
+
+
+- 17 are "false positives" due to differently ordered resultsets!
+- 14 are "false positives" due to slight changes in the SQL syntax
+- 7 EcommerceOrderWithItems-tests fail when run within the complete suite,
+-- but don't fail when run "alone" (with phpunit --group ...) 
+- 3 failures at least due to obscure precision problem (sums rounded up)
+--	so 1243.11 gets 1234
+- 5 failures are simply due to wrong filelength of generated html/pdf-reports, 
+--	"followups"
+- 1 failure ist an exception not raised when it should happen,
+--	related to an additional exception handler required for Oracle
+--	which catch this exception regardless of a set parameter
+--	--> has to be fixed, but not a big issue
+- 1 failure because we've got an additional updater file which breaks
+--	the ReleaseCheckListTest
+- 1 failure because the RankingQuery-feature is not implemented for Oracle
+--	and not sure whether all Oracle-dbadmins will be unhappy about this
+______
+  49
+
+
+Real failures
+
+- 10 related to the PrivacyManagerTest failing
+- 1  related to the obscure failing of the SEOtest (also for MySQL)
+- 1  related to strange chars cannot be handled correctly according to
+--	Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentContains
+--	sth. like "pageTitle=@*_)%"
+- 3  failed UrlTests
+and a few more (will be updated)
+
+
+Summary - things that matter most first:
+
+
+0) Test_Piwik_Integration_EcommerceOrderWithItems::testApi 
+
+Data sets #0-#6 fails, but not if that test is run "isolated" 
+with "--group EcommerceOrderWithItems", then everything is fine
+
+--> I don't have any idea about this at the moment !!
+
+
+Data sets #12,#13,#15 fails:
+11 cts./precision seems to be missing
+in returned values,
+eg. "revenue" is calculated to sum up to 
+13351 instead of 
+13351.11
+
+#25 fails because of different orderding of xml-elements,
+the values and xml-elements are identical!
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+#28 #29 fails because generated html/pdf-files don't 
+have the expected length (cannot be, because of failures
+with the data sets #12,#13,#15
+
+
+
+1) PrivacyManagerTest, multiple failures
+
+Could trace it back to Piwik_PrivacyManager_LogDataPurger::insertActionsToKeep(),
+nothing is inserted into the temporary table because the log-tables seem to 
+be empty at this stage. So later everything gets "purged".
+No idea yet why these tables in the MySQL-test are NOT empty at this point, 
+the Oracle-tables are.
+
+A functional test on the PrivacyManager's web-interface was successful, so this
+seems to be working, though the test fails.
+
+
+
+2) SEOTest::test_API
+
+Got this, didn't investigate it yet, it also fails on MySql !!! 
+
+"domain-age expected non-zero rank, got []
+Failed asserting that a NULL is not empty."
+
+
+
+3) ArchiveProcessingTest::testTableInsertBatchIterate
+
+An Exception is expected, but not thrown    ... 
+... the $ignoreWhenDuplicate parameter isn't currently evaluated correctly
+in Piwik::tableInsertBatchIterate()
+
+
+
+4) ReleaseCheckListTest::testSvnKeywords
+Fails due to an additional updaterfile (1.8.4-ora-b1.php)
+
+
+
+5) SegmentTest, multiple failures
+
+About 14 failures, because I had to remove the "AS"-keyword from the FROM-clause,
+see example below. A case to adapt the expected files.
+"AS" isn't allowed in a FROM-clause Oracle-SQL.
+
+--> Should provide another "expected"-files 
+
+--- Expected
++++ Actual
+@@ @@
+ Array (
+-    'sql' => ' SELECT log_visit.idvisit FROM t_log_visit AS log_visit WHERE log_visit.location_country = ? '
++    'sql' => ' SELECT log_visit.idvisit FROM t_log_visit log_visit WHERE log_visit.location_country = ? '
+     'bind' => Array (...)
+ )
+
+
+
+6) Test_Piwik_Integration_BlobReportLimitingTest::testApiWithRankingQuery
+
+Fails and probably must fail because RankingQuery is disables when run on Oracle
+
+
+
+7) Test_Piwik_Integration_FlattenReports::testApi with data set #3
+
+
+--- Expected
++++ Actual
+@@ @@
+     <row>
+-      <label>CustomVarPage - CustomVarValue1</label>
+-      <nb_uniq_visitors>6</nb_uniq_visitors>
+-      <nb_visits>6</nb_visits>
+-      <nb_actions>6</nb_actions>
+-      <is_aggregate>0</is_aggregate>
+-    </row>
+-    <row>
+-      <label>CustomVarPage - CustomVarValue2</label>
+-      <nb_uniq_visitors>6</nb_uniq_visitors>
+-      <nb_visits>6</nb_visits>
+-      <nb_actions>6</nb_actions>
++      <label>CustomVarPage - Others</label>
++      <nb_uniq_visitors>12</nb_uniq_visitors>
++      <nb_visits>12</nb_visits>
++      <nb_actions>12</nb_actions>
+
+
+
+8) Test_Piwik_Integration_OneVisitorOneWebsite_SeveralDaysDateRange_ArchivingTests::testCheck
+archive_blob_2010_12 expected 39, got 42
+Failed asserting that '42' matches expected 39.
+
+Didn't investigate this yet.
+
+
+
+9) Test_Piwik_Integration_OneVisitorTwoVisits_WithCookieSupport::testApi with data set #0 
+
+Wrong value in <goalPageId\>!
+
+Probably that test has to be adapted.
+if IDs are drawn from Oracle sequences 
+
+
+
+10) Test_Piwik_Integration_PeriodIsRange_DateIsLastN_MetadataAndNormalAPI::testApi 
+with data set #0 - #11
+
+--> Gives 12 tests not really failing!
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+
+
+11) Test_Piwik_Integration_SiteSearch::testApi 
+with data set #0 
+
+--> Gives 13 tests not really failing, + (see 0) #25 = 14 !
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+
+
+12) Test_Piwik_Integration_TwoVisitors_TwoWebsites_DifferentDays::testApi 
+with data set #0
+
+Further investigation required !!!
+
+--- Expected
++++ Actual
+@@ @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <results>
+-  <result idSite="1"/>
++  <result idSite="1">
++    <row>
++      <label>/index.htm</label>
++      <nb_visits>1</nb_visits>
++      <nb_uniq_visitors>1</nb_uniq_visitors>
++      <nb_hits>1</nb_hits>
++      <sum_time_spent>0</sum_time_spent>
++      <avg_time_on_page>0</avg_time_on_page>
++      <bounce_rate>0%</bounce_rate>
++      <exit_rate>0%</exit_rate>
++      <url>http://example.org/index.htm</url>
++    </row>
++  </result>
+   <result idSite="2"/>
+ </results>
+
+
+
+13) Related to 12) two tests are failing for genereted html/pdf-report
+(string length comparison fails)
+
+
+
+14) Test_Piwik_Integration_TwoVisitors_TwoWebsites_DifferentDays_Conversions::testApi 
+with data set #2
+
+Further investigation required !!!
+
+--- Expected
++++ Actual
+@@ @@
+     <bounce_count>1</bounce_count>
+-    <sum_visit_length/>
++    <sum_visit_length>-169198</sum_visit_length>
+     <max_actions>6</max_actions>
+     <bounce_rate>50%</bounce_rate>
+     <nb_actions_per_visit>3.5</nb_actions_per_visit>
+     <avg_time_on_site>0</avg_time_on_site>
+   </result>
+   <result idSite="2"/>
+   <result idSite="3"/>
+   <result idSite="4"/>
+ </results>
+
+
+
+15) Test_Piwik_Integration_TwoVisitsWithCustomVariables::testApi 
+with data set #0
+
+--> Sums up to 15 tests not really failing!
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+
+
+16) Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentContains::testApi with data set #0 (array('Actions.getPageTitles', 'VisitsSummary.get'), array(1, '2010-01-03 11:22:33', array('day'), false, 'pageTitle=@*_)%', '_SegmentPageTitleContainsStrangeCharacters'))
+Differences with expected in: /home/msdeistler/NetBeansProjects/piwik_ci/trunk/tests/PHPUnit/Integration/processed/test_twoVisitsWithCustomVariables_SegmentPageTitleContainsStrangeCharacters__Actions.getPageTitles_day.xml
+Failed asserting that two DOM documents are equal.
+
+@*_)%  PageTitleWithStrangeCharacters fails ...
+
+--- Expected
++++ Actual
+@@ @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<result>
+-  <row>
+-    <label> Profile page for user *_)%</label>
+-    <nb_visits>1</nb_visits>
+-    <nb_uniq_visitors>1</nb_uniq_visitors>
+-    <nb_hits>1</nb_hits>
+-    <sum_time_spent>0</sum_time_spent>
+-    <exit_nb_uniq_visitors>1</exit_nb_uniq_visitors>
+-    <exit_nb_visits>1</exit_nb_visits>
+-    <avg_time_on_page>0</avg_time_on_page>
+-    <bounce_rate>0%</bounce_rate>
+-    <exit_rate>100%</exit_rate>
+-  </row>
+-</result>
++<result/>
+
+
+
+17) Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentMatchALL_NoGoalData::testApi with data set #0 (array('VisitsSummary.get', 'CustomVariables.getCustomVariables'), array('all', '2010-01-03 11:22:33', array('day', 'week'), true, 'resolution==1111x222;customVariableName1!@randomvalue does not exist'))
+Differences with expected in: /home/msdeistler/NetBeansProjects/piwik_ci/trunk/tests/PHPUnit/Integration/processed/test_twoVisitsWithCustomVariables_segmentMatchALL_noGoalData__CustomVariables.getCustomVariables_day.xml
+Failed asserting that two DOM documents are equal.
+
+--> Sums up to 16 tests not really failing!
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+
+
+18) Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentMatchVisitorType::testApi with data set #0 (array('Referers.getKeywords', 'CustomVariables.getCustomVariables', 'VisitsSummary.get'), array('all', '2010-01-03 11:22:33', array('day', 'week'), true, 'customVariableName1==VisitorType;customVariableValue1==LoggedIn'))
+Differences with expected in: /home/msdeistler/NetBeansProjects/piwik_ci/trunk/tests/PHPUnit/Integration/processed/test_twoVisitsWithCustomVariables_segmentMatchVisitorType__CustomVariables.getCustomVariables_day.xml
+Failed asserting that two DOM documents are equal.
+
+--> Sums up to 17 tests not really failing!
+
+Fails due to wrong order of XML-elements, should provide another "expected"-files 
+
+
+
+19) See 17) but data sets #1-#3
+
+
+20) UrlTest::testIsLocalUrl with data set #28 ('www.example.com', 'http://www.example.com/path/?module=X', '/path/index.php', 'http://example.com/path/index.php', false)
+Failed asserting that true matches expected false.
+
+/home/msdeistler/NetBeansProjects/piwik_ci/trunk/tests/PHPUnit/Core/UrlTest.php:140
+
+21) UrlTest::testIsLocalUrl with data set #29 ('www.example.com', 'http://www.example.com/path/', '/path/', 'http://crsf.example.com/path/', false)
+Failed asserting that true matches expected false.
+
+/home/msdeistler/NetBeansProjects/piwik_ci/trunk/tests/PHPUnit/Core/UrlTest.php:140
+
+22) UrlTest::testIsValidHost with data set #11 (true, 'www.example.com:8080', array('example.com'), 'host:port is valid')
+host:port is valid
+Failed asserting that false matches expected true.
+
+
+
+
+
+There were 8 incomplete tests to to missing expected API output
+
+
+There were 4 skipped tests, 3 of them due to missing Images, 
+
+and ...
+
+one "skiped test" is related to 18) 
+Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentMatchVisitorType::testCheck
+This test depends on "Test_Piwik_Integration_TwoVisitsWithCustomVariables_SegmentMatchVisitorType::testApi" to pass.
+
+
+
