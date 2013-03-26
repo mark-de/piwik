@@ -256,9 +256,15 @@ class Piwik_Tracker_Db_Oracle extends Piwik_Tracker_Db
 		if ( !@oci_execute( $stid ) )
 		{
 			$error = oci_error($stid);
-			if ( $error['code']  != 1 )
+			
+			if ( $error['code']  != 1 && $error['code'] != 1451 )
+			{
+				// ignore inserts violating unique constraints
+				// and redefining cols to be nullable that are
+				// already nullable!
 				throw new Exception ( $error['message']);
-				
+			}	
+			
 			return false;
 		}
 		

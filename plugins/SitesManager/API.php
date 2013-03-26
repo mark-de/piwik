@@ -81,11 +81,34 @@ class Piwik_SitesManager_API
 	{
 		Piwik::checkUserIsSuperUser();
 		$group = trim($group);
+		$db = Zend_Registry::get('db');
+		
+		$sql = "SELECT * FROM ".Piwik_Common::prefixTable("site"). " ";
+		
 		// Ancud-IT GmbH
-		$quotes = Piwik_Common::isOracle() ? '"' : '`'; 
-		$sites = Zend_Registry::get('db')->fetchAll("SELECT * 
-													FROM ".Piwik_Common::prefixTable("site")." 
-									WHERE " . $quotes .  "group" . $quotes. " = ?", $group);
+		// we have to treat cols with NULLs for Oracle
+		// method might be called with $group = ''
+		// but '' is NULL for Oracle, so Oracle table contains NULL
+		// where MySQL table would contain '' !
+		
+		if(Piwik_Common::isOracle())
+		{
+			$quotes = '"';
+			if($group == '')
+			{
+				$where = " WHERE " . $quotes .  "group" . $quotes . " IS NULL";
+				$sites = $db->fetchAll($sql . $where);
+		return $sites;
+	}
+		}
+		else
+		{
+			$quotes = '`';
+		}
+	
+		$where = "WHERE " . $quotes .  "group" . $quotes . " = ?";
+		$sites = $db->fetchAll($sql . $where, $group); 
+									
 		return $sites;
 	}
 	

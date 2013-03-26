@@ -97,7 +97,7 @@ class Piwik_Db_Statement_Oracle extends Zend_Db_Statement_Oracle
             {
 				$sql = str_replace($key, $val, $sql); // Ancud-IT GmbH
 				$sql = str_replace('%', '.*', $sql);  // use regexp syntax
-                                                      // not LIKE-operator syntax!
+                $sql = str_replace('\_', '_', $sql);  // not LIKE-operator syntax!
 				$sql .= ",'i') ";
             }
             

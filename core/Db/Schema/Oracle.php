@@ -63,6 +63,39 @@ class Piwik_Db_Schema_Oracle extends Piwik_Db_Schema_Myisam
                     );
 	}
 
+	
+	private function dropAllTriggersAndSequences($db)
+	{
+		$triggers = $db->fetchCol('SELECT TRIGGER_NAME FROM USER_TRIGGERS');
+		
+		foreach ( $triggers as $trigger )
+		{
+			$db->query("DROP TRIGGER ".$trigger);
+		}
+		
+		$sequences = $db->fetchCol('SELECT SEQUENCE_NAME FROM USER_SEQUENCES');
+	
+		foreach ( $sequences as $sequence )
+		{
+			$db->query("DROP SEQUENCE ".$sequence);
+
+		}
+		
+	}
+	
+	
+	private function dropAllTables($db)
+	{
+		$tables = $db->fetchCol('SELECT TABLE_NAME FROM USER_TABLES');
+		
+		foreach ( $tables as $table )
+		{
+			$db->query("DROP TABLE ".$table);
+		}
+		
+		$db->exec('PURGE RECYCLEBIN');
+	}
+	
 	/**
 	 *
 	 * @param array $doNotDelete
@@ -77,13 +110,7 @@ class Piwik_Db_Schema_Oracle extends Piwik_Db_Schema_Myisam
 		
 		$db->exec('PURGE RECYCLEBIN');
 		
-		$triggers = $db->fetchCol( 'SELECT TRIGGER_NAME FROM USER_TRIGGERS'  );
-		foreach ( $triggers as $trigger )
-			$db->query( "DROP TRIGGER ".$trigger);
-		
-		$sequences = $db->fetchCol( 'SELECT SEQUENCE_NAME FROM USER_SEQUENCES' );
-		foreach ( $sequences as $sequence )
-			$db->query( "DROP SEQUENCE ".$sequence );
+		$this->dropAllTriggersAndSequences();
 		
 		$tablesAlreadyInstalled = $this->getTablesInstalled();
 
@@ -116,7 +143,10 @@ class Piwik_Db_Schema_Oracle extends Piwik_Db_Schema_Myisam
 	
 	public function dropDatabase()
 	{
-		$this->dropTables(); // Ancud-IT GmbH just clean up all tables
+		$db = Zend_Registry::get('db');
+		$this->dropAllTriggersAndSequences($db);
+		$this->dropAllTables($db); // Ancud-IT GmbH just get rid of all user tables
+		// dropping whole schema not feasible for Oracle!
 	}
 
 	

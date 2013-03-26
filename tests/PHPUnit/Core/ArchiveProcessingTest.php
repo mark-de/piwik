@@ -284,9 +284,9 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $table = Piwik_Common::prefixTable('site_url');
         $data = $this->_getDataInsert();
         $didWeUseBulk = Piwik::tableInsertBatch($table, array('idsite', 'url'), $data);
-        if(version_compare(PHP_VERSION, '5.2.9') < 0 ||
+        if((version_compare(PHP_VERSION, '5.2.9') < 0 ||
             version_compare(PHP_VERSION, '5.3.7') >= 0 ||
-            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL' 
+            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL' )
 				&& Piwik_Config::getInstance()->database['adapter'] != 'ORACLE')
         {
             $this->assertTrue($didWeUseBulk, "The test didn't LOAD DATA INFILE but fallbacked to plain INSERT, but we must unit test this function!");
@@ -336,17 +336,17 @@ class ArchiveProcessingTest extends DatabaseTestCase
         $table = $archiveProcessing->getTableArchiveBlobName();
 
         $data = $this->_getBlobDataInsert();
-        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'),  true);
-        if(version_compare(PHP_VERSION, '5.2.9') < 0 ||
+        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data,  true);
+        if((version_compare(PHP_VERSION, '5.2.9') < 0 ||
             version_compare(PHP_VERSION, '5.3.7') >= 0 ||
-            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL')
+            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL') && Piwik_Config::getInstance()->database['adapter'] != "ORACLE")
         {
             $this->assertTrue($didWeUseBulk, "The test didn't LOAD DATA INFILE but fallbacked to plain INSERT, but we must unit test this function!");
         }
         $this->_checkTableIsExpectedBlob($table, $data);
         
         // INSERT again the bulk. Because we use keyword LOCAL the data will be REPLACED automatically (see mysql doc) 
-        Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data);
+        Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, true);
         $this->_checkTableIsExpectedBlob($table, $data);
     }
 
@@ -442,7 +442,13 @@ class ArchiveProcessingTest extends DatabaseTestCase
     protected function _getBlobDataInsert()
     {
         $ts = '2011-03-31 17:48:00';
-        $str = '';
+		
+		if( Piwik_Common::isOracle() )
+		{
+			$ts .= ".000000"; // Ancud-IT NLS timestamp format ORACLE
+		}
+        
+		$str = '';
 		$array = array();
 		
         for($i = 0; $i < 256; $i++)

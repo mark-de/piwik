@@ -29,7 +29,7 @@ class Piwik_Option
 	 * @var bool
 	 */
 	private $loaded = false;
-
+	
 	/**
 	 * Singleton instance
 	 * @var self
@@ -80,13 +80,6 @@ class Piwik_Option
 		return $value;
 	}
 	
-	
-	private function checkForNullConstraint()
-	{
-		$sql = "ALTER TABLE " . Piwik_Common::prefixTable('option') . " MODIFY OPTION_VALUE NULL";
-		Piwik_Query($sql);
-	}
-	
 	/**
 	 * Sets the option value in the database and cache
 	 *
@@ -114,8 +107,6 @@ class Piwik_Option
 			
 		} else {
 			
-			$this->checkForNullConstraint();
-			
 			$sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " . 
 				"(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"
 							. $autoload . "' AS autoload FROM dual) " .
@@ -125,9 +116,9 @@ class Piwik_Option
 				"WHEN NOT MATCHED THEN INSERT ( target.option_name, target.option_value, target.autoload ) " .
 					"VALUES ( SOURCE.option_name, SOURCE.option_value, SOURCE.autoload )" ;
 			
-			Piwik_Query($sql);		
+				Piwik_Query($sql);
 		}
-		
+			
 		$this->all[$name] = $value;
 	}
 

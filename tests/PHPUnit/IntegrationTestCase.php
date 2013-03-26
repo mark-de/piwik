@@ -116,7 +116,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         self::setApiToCall( array());
     }
 
-    public static function tearDownAfterClass( $dropDatabase = false )
+    public static function tearDownAfterClass( $dropDatabase = true )
     {
         try {
             $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();

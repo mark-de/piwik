@@ -44,14 +44,14 @@ class Piwik_Common
 	public static function isOracle()
 	{
 		$config = Piwik_Config::getInstance();
-		$configOracle = $config->database['dbora'];
+		$dboraSet = isset($config->database['dbora']);
 		
 		// Ancud-IT 2013
 		// Piwik_Config might not be initialized, check for 
 		// adapter type, too
 		// @TODO dbora parameter is a preliminary solution
 		
-		return $configOracle ? $configOracle 
+		return $dboraSet ? $config->database['dbora'] 
 				: Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle;
 	}
 

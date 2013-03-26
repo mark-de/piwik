@@ -118,8 +118,19 @@ class Piwik_Site
 	{
 		if(!isset(self::$infoSites[$this->id][$name]))
 		{
-			throw new Exception('The requested website id = '.(int)$this->id.' (or its property '.$name.') couldn\'t be found');
+			if(Piwik_Common::isOracle())
+			{
+				return ''; // Ancud-IT  do that NULL to '' conversion manually
+						   // SitesManagerTest expects ''
+						   // Oracle treats '' as NULL, so sites-table accepts NULL
+						   // for sites properties (which isn't logically different to ''!
+			} 
+			else 
+			{
+				throw new Exception('The requested website id = '.(int)$this->id.' (or its property '.$name.') couldn\'t be found');
+			}
 		}
+				
 		return self::$infoSites[$this->id][$name];
 	}
 

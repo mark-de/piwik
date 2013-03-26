@@ -344,39 +344,16 @@ class Piwik_Db_Adapter_Oracle extends Zend_Db_Adapter_Oracle implements Piwik_Db
 				$config	   = Piwik_Config::getInstance();
 				$prefixTables = $config->database['tables_prefix'];
 				$sql		  = preg_replace( '/(`)(\s*\b' . $prefixTables . '[^\.]+\b\s*)(`)/i', "$2", $sql );
-				return parent::query( $sql, $bind );
-			} else if( $ex->getCode() == 979 ) // Ancud-IT GmbH ORA-00979: not a GROUP BY expression
-			{
-//				@TODO Ancud-IT GmbH   implement it completely
-//				$sqlFrom		= preg_split( '/\bFROM\b/i', $sql, 2 );
-//				$sqlFields		= preg_split( '/\bSELECT\b/i', $sqlFrom[0], 2 );
-//				$sqlIdentifiers = explode( ',', $sqlFields[1] );
-//
-//				$fieldsToBeAdded = array();
-//				foreach( $sqlIdentifiers as $field )
-//				{
-//					if( preg_match( '/\s+\bcount\(.+\)|\s+\bmax\(.+\)|\s+\bsum\(.+\)|\s+\bavg\(.+\)/  ', $field ) != 1 )
-//					{
-//						$fieldsToBeAdded[] = $field;
-//					}
-//				}
-
-				throw $ex;
+				return parent::query( $sql, $bind ); 
 			} else if ( $ex->getCode() == 1722 ) {
                 var_dump($ex->getMessage(), $bind, $sql); 
 				throw $ex ;
             } else if ( $ex->getCode() == 1451 ){ // cols are already nullable
                 return; 
             } else {
-                throw $ex;
-            }
-
-			
-            
-            
-		}       // Ancud-IT GmbH `piwik_option.idoption`   ` piwik_option  ` 
-                // example: (`)(\s*\bpiwik[^\.]+\b\s*)(`) we just take group 2 ($2)
-                // and leave all backticks behind!
+				throw $ex;
+            }                    
+		}       
 	}
 	
 	
