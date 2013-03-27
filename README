@@ -127,8 +127,7 @@ Oracle
 ******
 
 
-Tests: 3004, Assertions: 10961, Failures: 74, Incomplete: 8, Skipped: 4.
-
+Tests: 3004, Assertions: 10962, Failures: 73, Incomplete: 8, Skipped: 4.
 Taking into account all false positives, it doesn't look much worse
 than the MySQL-side.
 
@@ -141,16 +140,12 @@ than the MySQL-side.
 --	so 1243.11 gets 1234
 - 5 failures are simply due to wrong filelength of generated html/pdf-reports, 
 --	"followups"
-- 1 failure ist an exception not raised when it should happen,
---	related to an additional exception handler required for Oracle
---	which catch this exception regardless of a set parameter
---	--> has to be fixed, but not a big issue
 - 1 failure because we've got an additional updater file which breaks
 --	the ReleaseCheckListTest
 - 1 failure because the RankingQuery-feature is not implemented for Oracle
 --	and not sure whether all Oracle-dbadmins will be unhappy about this
 ______
-  49
+  48
 
 
 Real failures
@@ -215,7 +210,7 @@ Failed asserting that a NULL is not empty."
 
 
 
-3) ArchiveProcessingTest::testTableInsertBatchIterate
+3) IS FIXED ... ArchiveProcessingTest::testTableInsertBatchIterate
 
 An Exception is expected, but not thrown    ... 
 ... the $ignoreWhenDuplicate parameter isn't currently evaluated correctly

@@ -218,64 +218,64 @@ class Piwik_Tracker_Db_Oracle extends Piwik_Tracker_Db
 
 
 	/**
-	 * Executes a query, using optional bound parameters. 
-	 *  
-	 * @param string Query  
-	 * @param array|string Parameters to bind array('idsite'=> 1) 
-	 *  
-	 * @return bool|resource false if failed 
-	 * @throws Exception if an exception occured 
-	 */
-	public function query($query, $parameters = array())
-	{	
-		if(is_null($this->connection))
-			return false;
-		
-		if(self::$profiling)
-			$timer = $this->initProfiler();
-		
-		$queryParams = $this->prepare(array('query' => $query, 'params' => $parameters));
-		$query	  = $queryParams['query'];
-		$parameters = $queryParams['params'];
-		$stid	   = oci_parse($this->connection, $query);
+     * Executes a query, using optional bound parameters. 
+     *  
+     * @param string Query  
+     * @param array|string Parameters to bind array('idsite'=> 1) 
+     *  
+     * @return bool|resource false if failed 
+     * @throws Exception if an exception occured 
+     */
+    public function query($query, $parameters = array ())
+    {
+        if (is_null($this->connection))
+            return false;
 
-		foreach($parameters as $key => $val)
-			oci_bind_by_name($stid, $key, $parameters[$key]);
-		
-		$lastInsertedId = null;
+        if (self::$profiling)
+            $timer = $this->initProfiler();
 
-		if (strpos($query, ':primary') !== false)
-			oci_bind_by_name($stid, ':primary', $lastInsertedId, 11);
-		
-		
+        $queryParams = $this->prepare(array ('query' => $query, 'params' => $parameters));
+        $query      = $queryParams['query'];
+        $parameters = $queryParams['params'];
+        $stid       = oci_parse($this->connection, $query);
+
+        foreach ($parameters as $key => $val)
+            oci_bind_by_name($stid, $key, $parameters[$key]);
+
+        $lastInsertedId = null;
+
+        if (strpos($query, ':primary') !== false)
+            oci_bind_by_name($stid, ':primary', $lastInsertedId, 11);
+
+
 //		if (preg_match('/\bINSERT\b|\bUPDATE\b/i', $query) == 1)
 //		{
 //			var_dump( "INSERT IN TRACKER  ", $query, $parameters);
 //		}
-		
-		if ( !@oci_execute( $stid ) )
-		{
-			$error = oci_error($stid);
-			
-			if ( $error['code']  != 1 && $error['code'] != 1451 )
-			{
-				// ignore inserts violating unique constraints
-				// and redefining cols to be nullable that are
-				// already nullable!
-				throw new Exception ( $error['message']);
-			}	
-			
-			return false;
-		}
-		
-		if(isset($lastInsertedId))
-			$this->lastInsertId = $lastInsertedId;
-			
-		if(self::$profiling)
-			$this->recordQueryProfile($query, $timer);
-		
-		return $stid;		
-	}
+
+        if (!@oci_execute($stid))
+        {
+            $error = oci_error($stid);
+
+            if ($error['code'] != 1 && $error['code'] != 1451)
+            {
+                // ignore inserts violating unique constraints
+                // and redefining cols to be nullable that are
+                // already nullable!
+                throw new Exception($error['message']);
+            }
+
+            return false;
+        }
+
+        if (isset($lastInsertedId))
+            $this->lastInsertId = $lastInsertedId;
+
+        if (self::$profiling)
+            $this->recordQueryProfile($query, $timer);
+
+        return $stid;
+    }
 
 	
 	/**

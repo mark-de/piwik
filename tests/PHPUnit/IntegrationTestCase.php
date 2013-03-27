@@ -116,18 +116,23 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         self::setApiToCall( array());
     }
 
-    public static function tearDownAfterClass( $dropDatabase = true )
+    public static function tearDownAfterClass($dropDatabase = true)
     {
-        try {
+        try
+        {
             $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
-            foreach($plugins AS $plugin) {
-            	if ($dropDatabase)
-            	{
-	                $plugin->uninstall();
+            foreach ($plugins AS $plugin)
+            {
+                if ($dropDatabase)
+                {
+                    $plugin->uninstall();
                 }
             }
             Piwik_PluginsManager::getInstance()->unloadPlugins();
-        } catch (Exception $e) {}
+        } catch (Exception $e)
+        {
+            
+        }
         if ($dropDatabase)
         {
             Piwik::dropDatabase();
@@ -138,10 +143,10 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
         Piwik_Common::deleteTrackerCache();
         Piwik_Config::getInstance()->clear();
         Piwik_TablePartitioning::$tablesAlreadyInstalled = null;
-        Piwik_PDFReports_API::$cache = array();
+        Piwik_PDFReports_API::$cache = array ();
         Zend_Registry::_unsetInstance();
 
-        $_GET = $_REQUEST = array();
+        $_GET     = $_REQUEST = array ();
         Piwik_Translate::getInstance()->unloadEnglishTranslation();
 
         // re-enable tag cloud shuffling

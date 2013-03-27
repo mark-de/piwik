@@ -281,20 +281,20 @@ class ArchiveProcessingTest extends DatabaseTestCase
      */
     public function testTableInsertBatch()
     {
-        $table = Piwik_Common::prefixTable('site_url');
-        $data = $this->_getDataInsert();
-        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idsite', 'url'), $data);
-        if((version_compare(PHP_VERSION, '5.2.9') < 0 ||
-            version_compare(PHP_VERSION, '5.3.7') >= 0 ||
-            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL' )
-				&& Piwik_Config::getInstance()->database['adapter'] != 'ORACLE')
+        $table        = Piwik_Common::prefixTable('site_url');
+        $data         = $this->_getDataInsert();
+        $didWeUseBulk = Piwik::tableInsertBatch($table, array ('idsite', 'url'), $data);
+        if ((version_compare(PHP_VERSION, '5.2.9') < 0 ||
+                version_compare(PHP_VERSION, '5.3.7') >= 0 ||
+                Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL' )
+                && Piwik_Config::getInstance()->database['adapter'] != 'ORACLE')
         {
             $this->assertTrue($didWeUseBulk, "The test didn't LOAD DATA INFILE but fallbacked to plain INSERT, but we must unit test this function!");
         }
         $this->_checkTableIsExpected($table, $data);
-        
+
         // INSERT again the bulk. Because we use keyword LOCAL the data will be REPLACED automatically (see mysql doc) 
-        Piwik::tableInsertBatch($table, array('idsite', 'url'), $data);
+        Piwik::tableInsertBatch($table, array ('idsite', 'url'), $data);
         $this->_checkTableIsExpected($table, $data);
     }
 
@@ -329,24 +329,24 @@ class ArchiveProcessingTest extends DatabaseTestCase
      */
     public function testTableInsertBatchBlob()
     {
-        $siteTimezone = 'America/Toronto';
-        $dateLabel = '2011-03-31';
+        $siteTimezone      = 'America/Toronto';
+        $dateLabel         = '2011-03-31';
         $archiveProcessing = $this->_createArchiveProcessing('day', $dateLabel, $siteTimezone);
 
         $table = $archiveProcessing->getTableArchiveBlobName();
 
-        $data = $this->_getBlobDataInsert();
-        $didWeUseBulk = Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data,  true);
-        if((version_compare(PHP_VERSION, '5.2.9') < 0 ||
-            version_compare(PHP_VERSION, '5.3.7') >= 0 ||
-            Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL') && Piwik_Config::getInstance()->database['adapter'] != "ORACLE")
+        $data         = $this->_getBlobDataInsert();
+        $didWeUseBulk = Piwik::tableInsertBatch($table, array ('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, true);
+        if ((version_compare(PHP_VERSION, '5.2.9') < 0 ||
+                version_compare(PHP_VERSION, '5.3.7') >= 0 ||
+                Piwik_Config::getInstance()->database['adapter'] != 'PDO_MYSQL') && Piwik_Config::getInstance()->database['adapter'] != "ORACLE")
         {
             $this->assertTrue($didWeUseBulk, "The test didn't LOAD DATA INFILE but fallbacked to plain INSERT, but we must unit test this function!");
         }
         $this->_checkTableIsExpectedBlob($table, $data);
-        
+
         // INSERT again the bulk. Because we use keyword LOCAL the data will be REPLACED automatically (see mysql doc) 
-        Piwik::tableInsertBatch($table, array('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, true);
+        Piwik::tableInsertBatch($table, array ('idarchive', 'name', 'idsite', 'date1', 'date2', 'period', 'ts_archived', 'value'), $data, true);
         $this->_checkTableIsExpectedBlob($table, $data);
     }
 
@@ -443,34 +443,34 @@ class ArchiveProcessingTest extends DatabaseTestCase
     {
         $ts = '2011-03-31 17:48:00';
 		
-		if( Piwik_Common::isOracle() )
+        if (Piwik_Common::isOracle())
 		{
 			$ts .= ".000000"; // Ancud-IT NLS timestamp format ORACLE
 		}
         
-		$str = '';
-		$array = array();
+        $str   = '';
+        $array = array ();
 		
-        for($i = 0; $i < 256; $i++)
+        for ($i = 0; $i < 256; $i++)
         {
             $str .= chr($i);
         }
-        $array[] = array(1, 'bytes 0-255', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, $str);
+        $array[] = array (1, 'bytes 0-255', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, $str);
 
-        $array[] = array(2, 'compressed string', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, gzcompress( " \n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942"));
+        $array[] = array (2, 'compressed string', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, gzcompress(" \n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942\n \r \t teste eigaj oegheao geaoh guoea98742983 2 342942"));
 
-        $str = file_get_contents(PIWIK_PATH_TEST_TO_ROOT . '/tests/core/Piwik/lipsum.txt');
-        $array[] = array(3, 'lorem ipsum', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, $str);
+        $str     = file_get_contents(PIWIK_PATH_TEST_TO_ROOT . '/tests/core/Piwik/lipsum.txt');
+        $array[] = array (3, 'lorem ipsum', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, $str);
 
-        $array[] = array(4, 'lorem ipsum compressed', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, gzcompress($str));
+        $array[] = array (4, 'lorem ipsum compressed', 1, '2011-03-31', '2011-03-31', Piwik::$idPeriods['day'], $ts, gzcompress($str));
 
 		// Ancud-IT GmbH
 		
-		if ( Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle )
+        if (Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle)
 		{
-			foreach( $array as $key => $val )
+            foreach ($array as $key => $val)
 			{
-				$array[$key][7] = bin2hex( $val[7] );
+                $array[$key][7] = bin2hex($val[7]);
 			}
 		}
 		

@@ -35,25 +35,21 @@ class Piwik_Common
 	 */
 	const HTML_ENCODING_QUOTE_STYLE		= ENT_QUOTES;
 
-/*
- * Database
- */
 	/**
-	 * @return bool 
-	 */
-	public static function isOracle()
-	{
-		$config = Piwik_Config::getInstance();
-		$dboraSet = isset($config->database['dbora']);
-		
-		// Ancud-IT 2013
-		// Piwik_Config might not be initialized, check for 
-		// adapter type, too
-		// @TODO dbora parameter is a preliminary solution
-		
-		return $dboraSet ? $config->database['dbora'] 
-				: Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle;
-	}
+     * @return bool 
+     */
+    public static function isOracle()
+    {
+        $config   = Piwik_Config::getInstance();
+        $dboraSet = isset($config->database['dbora']);
+
+        // Ancud-IT 2013
+        // Piwik_Config might not be initialized, check for 
+        // adapter type, too
+        // @TODO dbora parameter is a preliminary solution
+
+        return $dboraSet ? $config->database['dbora'] : Zend_Registry::get('db') instanceof Piwik_Db_Adapter_Oracle;
+    }
 
 	/**
 	 * Hashes a string into an integer which should be very low collision risks

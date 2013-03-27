@@ -81,9 +81,9 @@ class Piwik_SitesManager_API
 	{
 		Piwik::checkUserIsSuperUser();
 		$group = trim($group);
-		$db = Zend_Registry::get('db');
+        $db    = Zend_Registry::get('db');
 		
-		$sql = "SELECT * FROM ".Piwik_Common::prefixTable("site"). " ";
+        $sql = "SELECT * FROM " . Piwik_Common::prefixTable("site") . " ";
 		
 		// Ancud-IT GmbH
 		// we have to treat cols with NULLs for Oracle
@@ -91,22 +91,21 @@ class Piwik_SitesManager_API
 		// but '' is NULL for Oracle, so Oracle table contains NULL
 		// where MySQL table would contain '' !
 		
-		if(Piwik_Common::isOracle())
+        if (Piwik_Common::isOracle())
 		{
 			$quotes = '"';
-			if($group == '')
+            if ($group == '')
 			{
-				$where = " WHERE " . $quotes .  "group" . $quotes . " IS NULL";
+                $where = " WHERE " . $quotes . "group" . $quotes . " IS NULL";
 				$sites = $db->fetchAll($sql . $where);
 		return $sites;
 	}
-		}
-		else
+        } else
 		{
 			$quotes = '`';
 		}
 	
-		$where = "WHERE " . $quotes .  "group" . $quotes . " = ?";
+        $where = "WHERE " . $quotes . "group" . $quotes . " = ?";
 		$sites = $db->fetchAll($sql . $where, $group); 
 									
 		return $sites;

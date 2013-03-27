@@ -324,37 +324,39 @@ class Piwik_Db_Adapter_Oracle extends Zend_Db_Adapter_Oracle implements Piwik_Db
 	}
 
 	/**
-	 * Ancud-IT GmbH
-	 * @param string $sql
-	 * @param array $bind
-	 * @return zendDb statement
-	 * @throws Exception 
-	 */
-	public function query( $sql, $bind = array() )
-	{
-		try
-		{
-			$stmt = parent::query( $sql, $bind );
-			return $stmt;
-			
-		} catch( Zend_Db_Statement_Oracle_Exception $ex )  // Ancud-IT GmbH  Statement_Exceptions most likely here ...
-		{
-			if( $ex->getCode() == 942 )  // Ancud-IT GmbH  table not found error
-			{ // likely cause: some mysql-backticks around the table identifier
-				$config	   = Piwik_Config::getInstance();
-				$prefixTables = $config->database['tables_prefix'];
-				$sql		  = preg_replace( '/(`)(\s*\b' . $prefixTables . '[^\.]+\b\s*)(`)/i', "$2", $sql );
-				return parent::query( $sql, $bind ); 
-			} else if ( $ex->getCode() == 1722 ) {
-                var_dump($ex->getMessage(), $bind, $sql); 
-				throw $ex ;
-            } else if ( $ex->getCode() == 1451 ){ // cols are already nullable
-                return; 
-            } else {
-				throw $ex;
-            }                    
-		}       
-	}
+     * Ancud-IT GmbH
+     * @param string $sql
+     * @param array $bind
+     * @return zendDb statement
+     * @throws Exception 
+     */
+    public function query($sql, $bind = array ())
+    {
+        try
+        {
+            $stmt = parent::query($sql, $bind);
+            return $stmt;
+        } catch (Zend_Db_Statement_Oracle_Exception $ex)  // Ancud-IT GmbH  Statement_Exceptions most likely here ...
+        {
+            if ($ex->getCode() == 942)  // Ancud-IT GmbH  table not found error
+            { // likely cause: some mysql-backticks around the table identifier
+                $config       = Piwik_Config::getInstance();
+                $prefixTables = $config->database['tables_prefix'];
+                $sql          = preg_replace('/(`)(\s*\b' . $prefixTables . '[^\.]+\b\s*)(`)/i', "$2", $sql);
+                return parent::query($sql, $bind);
+            } else if ($ex->getCode() == 1722)
+            {
+                var_dump($ex->getMessage(), $bind, $sql);
+                throw $ex;
+            } else if ($ex->getCode() == 1451)
+            { // cols are already nullable
+                return;
+            } else
+            {
+                throw $ex;
+            }
+        }
+    }
 	
 	
     /**

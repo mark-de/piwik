@@ -791,14 +791,14 @@ class SitesManagerTest extends DatabaseTestCase
      */
     public function testGetSitesGroups()
     {
-        $groups = array( 'group1', ' group1 ', '', 'group2');
-		// Ancud-IT  resultset ordering doesn't really matter
-        $expectedGroups = Piwik_Common::isOracle() ? array('','group1','group2') : array('group1','','group2');
-        foreach($groups as $group)
+        $groups = array ('group1', ' group1 ', '', 'group2');
+        // Ancud-IT  resultset ordering doesn't really matter
+        $expectedGroups = Piwik_Common::isOracle() ? array ('', 'group1', 'group2') : array ('group1', '', 'group2');
+        foreach ($groups as $group)
         {
-            Piwik_SitesManager_API::getInstance()->addSite("test toto@{}", 'http://example.org',$ecommerce=1,$siteSearch = null, $searchKeywordParameters = null, $searchCategoryParameters = null, $excludedIps = null, $excludedQueryParameters = null, $timezone = null, $currency = null, $group);
+            Piwik_SitesManager_API::getInstance()->addSite("test toto@{}", 'http://example.org', $ecommerce = 1, $siteSearch = null, $searchKeywordParameters = null, $searchCategoryParameters = null, $excludedIps = null, $excludedQueryParameters = null, $timezone = null, $currency = null, $group);
         }
-        
+
         $this->assertEquals($expectedGroups, Piwik_SitesManager_API::getInstance()->getSitesGroups());
     }
 

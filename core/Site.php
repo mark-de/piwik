@@ -109,30 +109,29 @@ class Piwik_Site
 	}
 
 	/**
-	 * Returns a site property
-	 * @param string  $name  property to return
-	 * @return mixed
-	 * @throws Exception
-	 */
-	protected function get( $name)
-	{
-		if(!isset(self::$infoSites[$this->id][$name]))
-		{
-			if(Piwik_Common::isOracle())
-			{
-				return ''; // Ancud-IT  do that NULL to '' conversion manually
-						   // SitesManagerTest expects ''
-						   // Oracle treats '' as NULL, so sites-table accepts NULL
-						   // for sites properties (which isn't logically different to ''!
-			} 
-			else 
-			{
-				throw new Exception('The requested website id = '.(int)$this->id.' (or its property '.$name.') couldn\'t be found');
-			}
-		}
-				
-		return self::$infoSites[$this->id][$name];
-	}
+     * Returns a site property
+     * @param string  $name  property to return
+     * @return mixed
+     * @throws Exception
+     */
+    protected function get($name)
+    {
+        if (!isset(self::$infoSites[$this->id][$name]))
+        {
+            if (Piwik_Common::isOracle())
+            {
+                return ''; // Ancud-IT  do that NULL to '' conversion manually
+                // SitesManagerTest expects ''
+                // Oracle treats '' as NULL, so sites-table accepts NULL
+                // for sites properties (which isn't logically different to ''!
+            } else
+            {
+                throw new Exception('The requested website id = ' . (int) $this->id . ' (or its property ' . $name . ') couldn\'t be found');
+            }
+        }
+
+        return self::$infoSites[$this->id][$name];
+    }
 
 	/**
 	 * Returns the creation date of the site

@@ -2574,7 +2574,7 @@ class Piwik
 		// self::repairOracleBlobsArchive(); // Ancud-IT GmbH  
 		// @TODO
 		$ora = Piwik_Common::isOracle();
-		$ignore = $ora ? '' : 'IGNORE';
+		$ignore = $ora ? '' : $ignoreWhenDuplicate? 'IGNORE' : '';
 		
 		$fieldList = '('.join(',', $fields).')';
 		$blobFields[] =  'value' ;

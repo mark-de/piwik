@@ -71,7 +71,7 @@ class Piwik_Option
 		$qu = Piwik_Common::isOracle() ? '' : '`';
 		$value = Piwik_FetchOne( 'SELECT option_value '. 
 							'FROM ' . $qu . Piwik_Common::prefixTable('option') . $qu .
-							'WHERE option_name = ?', $name);
+							'  WHERE option_name = ?', $name);
 		if($value === false)
 		{
 			return false;
@@ -89,23 +89,23 @@ class Piwik_Option
 	 */
 	public function set($name, $value, $autoload = 0)
 	{
-		$autoload = (int)$autoload;
+        $autoload = (int) $autoload;
 		
 		/**
 		 * IMPORTANT !
 		 * Ancud-IT GmbH: if this statements fails, the installer can get a rather unspecific errormessage  (timezone not valid)
 		 */
-		if ( !Piwik_Common::isOracle() )
+        if (!Piwik_Common::isOracle())
 		{
-			$sql = 'INSERT INTO `'. Piwik_Common::prefixTable('option') . '` (option_name, option_value, autoload) '.
-					' VALUES (?, ?, ?) '.
+            $sql = 'INSERT INTO `' . Piwik_Common::prefixTable('option') . '` (option_name, option_value, autoload) ' .
+                    ' VALUES (?, ?, ?) ' .
 					' ON DUPLICATE KEY UPDATE option_value = ?';
 			
-			$bind = array($name, $value, $autoload, $value);
+            $bind = array ($name, $value, $autoload, $value);
 			
 			Piwik_Query($sql, $bind);		
-			
-		} else {
+        } else
+        {
 			
 			$sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " . 
 				"(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"
@@ -114,7 +114,7 @@ class Piwik_Option
 				"WHEN MATCHED THEN " .
 					"UPDATE SET option_value = '" . $value . "' " .
 				"WHEN NOT MATCHED THEN INSERT ( target.option_name, target.option_value, target.autoload ) " .
-					"VALUES ( SOURCE.option_name, SOURCE.option_value, SOURCE.autoload )" ;
+                    "VALUES ( SOURCE.option_name, SOURCE.option_value, SOURCE.autoload )";
 			
 				Piwik_Query($sql);
 		}
