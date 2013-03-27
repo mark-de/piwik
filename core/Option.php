@@ -81,46 +81,46 @@ class Piwik_Option
 	}
 	
 	/**
-	 * Sets the option value in the database and cache
-	 *
-	 * @param string  $name
-	 * @param string  $value
-	 * @param int     $autoload  if set to 1, this option value will be automatically loaded; should be set to 1 for options that will always be used in the Piwik request.
-	 */
-	public function set($name, $value, $autoload = 0)
-	{
+     * Sets the option value in the database and cache
+     *
+     * @param string  $name
+     * @param string  $value
+     * @param int     $autoload  if set to 1, this option value will be automatically loaded; should be set to 1 for options that will always be used in the Piwik request.
+     */
+    public function set($name, $value, $autoload = 0)
+    {
         $autoload = (int) $autoload;
-		
-		/**
-		 * IMPORTANT !
-		 * Ancud-IT GmbH: if this statements fails, the installer can get a rather unspecific errormessage  (timezone not valid)
-		 */
+
+        /**
+         * IMPORTANT !
+         * Ancud-IT GmbH: if this statements fails, the installer can get a rather unspecific errormessage  (timezone not valid)
+         */
         if (!Piwik_Common::isOracle())
-		{
+        {
             $sql = 'INSERT INTO `' . Piwik_Common::prefixTable('option') . '` (option_name, option_value, autoload) ' .
                     ' VALUES (?, ?, ?) ' .
-					' ON DUPLICATE KEY UPDATE option_value = ?';
-			
+                    ' ON DUPLICATE KEY UPDATE option_value = ?';
+
             $bind = array ($name, $value, $autoload, $value);
-			
-			Piwik_Query($sql, $bind);		
+
+            Piwik_Query($sql, $bind);
         } else
         {
-			
-			$sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " . 
-				"(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"
-							. $autoload . "' AS autoload FROM dual) " .
-				"SOURCE ON (target.option_name = SOURCE.option_name) " .
-				"WHEN MATCHED THEN " .
-					"UPDATE SET option_value = '" . $value . "' " .
-				"WHEN NOT MATCHED THEN INSERT ( target.option_name, target.option_value, target.autoload ) " .
+
+            $sql = "MERGE INTO " . Piwik_Common::prefixTable("option") . " TARGET USING " .
+                    "(SELECT '" . $name . "' AS option_name, '" . $value . "' AS option_value, '"
+                    . $autoload . "' AS autoload FROM dual) " .
+                    "SOURCE ON (target.option_name = SOURCE.option_name) " .
+                    "WHEN MATCHED THEN " .
+                    "UPDATE SET option_value = '" . $value . "' " .
+                    "WHEN NOT MATCHED THEN INSERT ( target.option_name, target.option_value, target.autoload ) " .
                     "VALUES ( SOURCE.option_name, SOURCE.option_value, SOURCE.autoload )";
-			
-				Piwik_Query($sql);
-		}
-			
-		$this->all[$name] = $value;
-	}
+
+            Piwik_Query($sql);
+        }
+
+        $this->all[$name] = $value;
+    }
 
 	/**
 	 * Delete key-value pair from database and reload cache.
