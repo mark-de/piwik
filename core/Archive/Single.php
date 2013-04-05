@@ -262,7 +262,7 @@ class Piwik_Archive_Single extends Piwik_Archive
 	 */
 	protected function get( $name, $typeValue = 'numeric', &$archivedDate = false )
 	{
-	   	$this->setRequestedReport($name);
+		$this->setRequestedReport($name);
 	   	$this->prepareArchive();
 
 		// Ancud-IT GmbH:
@@ -476,7 +476,8 @@ class Piwik_Archive_Single extends Piwik_Archive
 
 		while($row = $query->fetch())
 		{
-			$value = $row['value'];
+			$value = Piwik_Common::isOracle() ? 
+					$this->getOracleBlob( $row, $hasBlobs ) : $row['value'];
 			$name = $row['name'];
 
 			if($hasBlobs)

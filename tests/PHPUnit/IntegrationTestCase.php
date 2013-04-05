@@ -34,6 +34,9 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 	
 	/**
 	 * Connects to MySQL w/o specifying a database.
+     * Ancud-IT ... but keep database name for Oracle,
+     * as it is the SID and abolutely necessary
+     * for establishing a connection at all!
 	 */
 	public static function connectWithoutDatabase()
 	{
@@ -118,21 +121,21 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 
     public static function tearDownAfterClass($dropDatabase = true)
     {
-        try
-        {
-            $plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
-            foreach ($plugins AS $plugin)
-            {
-                if ($dropDatabase)
-                {
-                    $plugin->uninstall();
-                }
-            }
-            Piwik_PluginsManager::getInstance()->unloadPlugins();
-        } catch (Exception $e)
-        {
-            
-        }
+		$plugins = Piwik_PluginsManager::getInstance()->getLoadedPlugins();
+		foreach ($plugins AS $plugin)
+		{
+			if ($dropDatabase)
+			{
+				try 
+				{
+					$plugin->uninstall();
+				} catch (Exception $e) {
+					echo "\n There was an error uninstalling a plugin: " . $e->getMessage() . "\n";
+				}
+			}
+		}
+		Piwik_PluginsManager::getInstance()->unloadPlugins();
+       
         if ($dropDatabase)
         {
             Piwik::dropDatabase();
@@ -377,11 +380,12 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
 	private static function canImagesBeIncludedInScheduledReports()
 	{
 		// TODO update to match new Piwik QA Server
-		$gdInfo = gd_info();
-		return
-			stristr(php_uname(),'Linux precise32') &&
-			phpversion() == '5.3.10-1ubuntu3.2' &&
-			$gdInfo['GD Version'] == '2.0';
+			$gdInfo = gd_info();
+			return $gdInfo['GD Version'] == 'bundled (2.0.34 compatible)';
+
+		//	stristr(php_uname(),'Linux precise32') &&
+		//	phpversion() == '5.3.10-1ubuntu3.2' &&
+		//  $gdInfo['GD Version'] == '2.0';
 	}
 
 	/**
@@ -1131,7 +1135,7 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
      */
     protected static function restoreDbTables( $tables )
     {
-    	// truncate existing tables
+		// truncate existing tables
     	Piwik::truncateAllTables();
     	
     	// insert data

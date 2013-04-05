@@ -192,8 +192,9 @@ class Piwik_CustomVariables extends Piwik_Plugin
 			$keyField = "custom_var_k".$i;
 			$valueField = "custom_var_v".$i;
 			$dimensions = array($keyField, $valueField);
-			$where = " %s.$keyField IS NOT NULL OR %s.$keyField = ''";
-			// @TODO Ancud-IT GmbH: Empty strings violate NOT NULL cons  
+			$where = " %s.$keyField IS NOT NULL OR %s.$keyField != ''";
+			// @TODO Ancud-IT GmbH: The additional "$s.$keyField != '' condition" is probably nonsense  
+			// but as this should work for MySql, too, keep that for safety
 			// Custom Vars names and values metrics for visits
 			$query = $archiveProcessing->queryVisitsByDimension($dimensions, $where);
 			 

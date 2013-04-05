@@ -102,8 +102,9 @@ class Piwik_Provider extends Piwik_Plugin
 	function uninstall()
 	{
 		// add column hostname / hostname ext in the visit table
-		$query = "ALTER TABLE `".Piwik_Common::prefixTable('log_visit')."` DROP `location_provider`";
-		Piwik_Exec($query);
+        $col = Piwik_Common::isOracle() ? 'COLUMN' : '';
+		$query = "ALTER TABLE `".Piwik_Common::prefixTable('log_visit')."` DROP " . $col . " `location_provider`";
+		Piwik_Query($query);
 	}
 	
 	function addWidget()
