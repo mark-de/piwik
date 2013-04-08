@@ -159,8 +159,7 @@ class Piwik_Db_Statement_Oracle extends Zend_Db_Statement_Oracle
 
             foreach (array_keys($params) as $name)
             {
-                if (is_int($params[$name]) || is_double($params[$name])
-                        || is_float($params[$name]))
+                if (is_int($params[$name]))
                 {
                     $this->_bindParam($name, $params[$name], SQLT_INT, 13);
                 } else
