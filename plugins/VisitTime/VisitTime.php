@@ -4,7 +4,7 @@
  *
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
- * @version $Id$
+ * @version $Id: VisitTime.php 6679 2012-08-05 22:13:23Z capedfuzz $
  *
  * @category Piwik_Plugins
  * @package Piwik_VisitTime
@@ -18,8 +18,13 @@ class Piwik_VisitTime extends Piwik_Plugin
 {
 	private $sqlHourFunction;
 	
-	function __construct()
+	private function initSqlHourFunction()
 	{
+		if (isset($this->sqlHourFunction))
+		{
+			return;
+		}
+		
 		if( Piwik_Common::isOracle()) 
 		{
 			$this->setSqlHourFunction( 'EXTRACT( HOUR FROM ' );
@@ -27,7 +32,7 @@ class Piwik_VisitTime extends Piwik_Plugin
 			$this->setSqlHourFunction( 'HOUR(' );
 		}
 	}
-
+	
 	public function setSqlHourFunction($sqlHourFunction)
 	{
 		$this->sqlHourFunction = $sqlHourFunction;
@@ -35,6 +40,7 @@ class Piwik_VisitTime extends Piwik_Plugin
 
     public function getSqlHourFunction()
 	{
+		$this->initSqlHourFunction();
 		return $this->sqlHourFunction;
 	}
 	
