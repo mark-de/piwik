@@ -276,6 +276,7 @@ class Piwik_Live_API
 						AND idgoal <= ".Piwik_Tracker_GoalManager::IDGOAL_ORDER;
 			$ecommerceDetails = Piwik_FetchAll($sql, array($idvisit));
 
+			$abandonedCart = false;
 			foreach($ecommerceDetails as &$ecommerceDetail)
 			{
 				if($ecommerceDetail['type'] == Piwik_Archive::LABEL_ECOMMERCE_CART)
@@ -289,6 +290,8 @@ class Piwik_Live_API
 					unset($ecommerceDetail['revenueTax']);
 					unset($ecommerceDetail['revenueShipping']);
 					unset($ecommerceDetail['revenueDiscount']);
+					
+					$abandonedCart = true;
 					
                     // but don't unset 'orderId' we use pseudo-order-ids as deduplication workaround
                     // in log_conversion
@@ -334,10 +337,22 @@ class Piwik_Live_API
 							AND deleted = 0
 				";
 				
-				$bind = array($idvisit, isset($ecommerceConversion['orderId']) 
-											? $ecommerceConversion['orderId'] 
-											: (string) Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONED_CART
-				);
+				
+				if (isset($ecommerceConversion['orderId']))
+				{
+					$bind = array($idvisit, $ecommerceConversion['orderId']);
+					
+					if ($abandonedCart)
+					{
+						// Ancud-IT unset it now, 
+						// abandoned carts use a generated pseudo-orderId in Oracle tables
+						unset($ecommerceConversion['orderId']);
+					}
+					
+				} else 
+				{
+					$bind = array($idvisit, (string) Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONDED_CART);
+				}
 				
 				$itemsDetails = Piwik_FetchAll($sql, $bind);
 				foreach($itemsDetails as &$detail)

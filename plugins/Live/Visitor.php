@@ -112,6 +112,13 @@ class Piwik_Live_Visitor
 	
 	function getVisitLocalTime()
 	{
+		if (Piwik_Common::isOracle())
+		{
+			// Ancud-IT 2013
+			// remove day parameter, '+0 ', of Oracle's day to seconds data type
+			return substr($this->details['visitor_localtime'], 3);
+		}
+
 		return $this->details['visitor_localtime'];
 	}
 	
