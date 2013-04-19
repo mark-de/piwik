@@ -29,7 +29,7 @@
 		<siteCurrency>USD</siteCurrency>
 		<siteCurrencySymbol>$</siteCurrencySymbol>
 		
-		<visitLocalTime>+0 12:34:06</visitLocalTime>
+		<visitLocalTime>12:34:06</visitLocalTime>
 		
 		
 		
@@ -118,7 +118,7 @@
 		<siteCurrency>USD</siteCurrency>
 		<siteCurrencySymbol>$</siteCurrencySymbol>
 		
-		<visitLocalTime>+0 12:34:06</visitLocalTime>
+		<visitLocalTime>12:34:06</visitLocalTime>
 		
 		
 		

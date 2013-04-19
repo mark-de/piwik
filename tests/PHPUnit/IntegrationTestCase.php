@@ -918,7 +918,11 @@ abstract class IntegrationTestCase extends PHPUnit_Framework_TestCase
     private function getProcessedAndExpectedDirs()
     {
         $path = $this->getPathToTestDirectory();
-		$expected = Piwik_Common::isOracle() ? '/expected/oracle/' : '/expected/';
+        // Ancud-IT  uncomment the commented code below for testing against adapted output-files
+        // create /expected/oracle first and copy all files to it, than 
+        // adapt those you need to adapt in order tests to pass.
+        // leaving output-files for the default database MySQL untouched
+		$expected = /* Piwik_Common::isOracle() ? '/expected/oracle/' : */ '/expected/';
         return array($path . '/processed/', $path . $expected);
     }
 
