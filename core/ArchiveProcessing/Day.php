@@ -332,7 +332,8 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 	    {
 	    	$label2 = $label;
 	    	foreach($label2 as &$field) { $field = 'log_link_visit_action.'. $field; }
-	        $groupBy = implode(", ", $label2);
+	        $groupBy = $orderBy = implode(", ", $label2);
+            $orderBy = $orderBy . " ASC";
 	    	foreach($label2 as $id => &$field) { $field = "$field AS ".$label[$id]; }
 	        $select = implode(", ", $label2);
 	        
@@ -651,7 +652,7 @@ class Piwik_ArchiveProcessing_Day extends Piwik_ArchiveProcessing
 		
 		$bind = array($this->getStartDatetimeUTC(), $this->getEndDatetimeUTC(), $this->idsite);
 		                     
-        $query = $this->getSegment()->getSelectQuery($select, $from, $where, $bind, $orderBy=false, $groupBy);
+        $query = $this->getSegment()->getSelectQuery($select, $from, $where, $bind, $orderBy="log_conversion.idgoal", $groupBy);
         
         return $this->db->query($query['sql'], $query['bind']);
 	}

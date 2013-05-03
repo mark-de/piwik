@@ -275,26 +275,24 @@ class Piwik_Live_API
 					WHERE idvisit = ?
 						AND idgoal <= ".Piwik_Tracker_GoalManager::IDGOAL_ORDER;
 			$ecommerceDetails = Piwik_FetchAll($sql, array($idvisit));
-
-			$abandonedCart = false;
+			
 			foreach($ecommerceDetails as &$ecommerceDetail)
 			{
 				if($ecommerceDetail['type'] == Piwik_Archive::LABEL_ECOMMERCE_CART)
 				{
-					if(!Piwik_Common::isOracle()) 
+					if(Piwik_Common::isOracle()) 
 					{
-					unset($ecommerceDetail['orderId']);
+                        $ecommerceDetail['pseudoOrderId'] = $ecommerceDetail['orderId'];
 					}
 					
-					unset($ecommerceDetail['revenueSubTotal']);
+					unset($ecommerceDetail['orderId']);
+                    unset($ecommerceDetail['revenueSubTotal']);
 					unset($ecommerceDetail['revenueTax']);
 					unset($ecommerceDetail['revenueShipping']);
 					unset($ecommerceDetail['revenueDiscount']);
-					
-					$abandonedCart = true;
-					
-                    // but don't unset 'orderId' we use pseudo-order-ids as deduplication workaround
-                    // in log_conversion
+										
+                    // Ancud-IT: but store 'orderId' for Oracle, we use pseudo-order-ids 
+                    // as deduplication workaround in log_conversion
                     // by unique-key-constraints in Oracle goes to far ...
 				}
 			
@@ -336,24 +334,13 @@ class Piwik_Live_API
 							AND idorder = ?
 							AND deleted = 0
 				";
-				
-				
-				if (isset($ecommerceConversion['orderId']))
-				{
-					$bind = array($idvisit, $ecommerceConversion['orderId']);
-					
-					if ($abandonedCart)
-					{
-						// Ancud-IT unset it now, 
-						// abandoned carts use a generated pseudo-orderId in Oracle tables
-						unset($ecommerceConversion['orderId']);
-					}
-					
-				} else 
-				{
-					$bind = array($idvisit, (string) Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONDED_CART);
-				}
-				
+                
+				$bind = array($idvisit, isset($ecommerceConversion['orderId']) ? $ecommerceConversion['orderId'] :
+                        (array_key_exists('pseudoOrderId', $ecommerceConversion) ? $ecommerceConversion['pseudoOrderId'] : Piwik_Tracker_GoalManager::ITEM_IDORDER_ABANDONED_CART)
+				);
+                
+                unset($ecommerceConversion['pseudoOrderId']);
+              
 				$itemsDetails = Piwik_FetchAll($sql, $bind);
 				foreach($itemsDetails as &$detail)
 				{
@@ -518,7 +505,7 @@ class Piwik_Live_API
 				$whereBind[] = $dateEndString;
 			}
 		}
-
+		
 		if(count($where) > 0)
 		{
 			$where = join(" 

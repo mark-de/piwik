@@ -346,7 +346,8 @@ class Piwik_Db_Adapter_Oracle extends Zend_Db_Adapter_Oracle implements Piwik_Db
                 return parent::query($sql, $bind);
             } else if ($ex->getCode() == 1722)
             {
-                var_dump($ex->getMessage(), $bind, $sql);
+                var_export($ex->getMessage());
+                var_export($bind);
                 throw $ex;
             } else if ($ex->getCode() == 1451)
             { // cols are already nullable
