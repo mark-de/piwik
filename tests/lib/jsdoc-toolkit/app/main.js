@@ -1,5 +1,5 @@
 /**
- * @version $Id: main.js 818 2009-11-08 14:51:41Z micmath $
+ * @version $Id$
  */
 
 function main() {

@@ -5,7 +5,7 @@
  * 
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
- * @version $Id: Oracle.php 4690 2011-05-15 21:02:40Z Ancud-IT GmbH $ * 
+ * @version $Id$
  * @category Piwik
  * @package Piwik
  */

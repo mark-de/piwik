@@ -7,7 +7,7 @@
 
 /**
  * Description of Oracle
- *@version $Id: Oracle.php 6109 2012-03-24 11:49:29Z Ancud-IT GmbH $
+ *@version $Id$
  * @author Ancud-IT GmbH
  */
 class Piwik_Tracker_Db_Oracle extends Piwik_Tracker_Db

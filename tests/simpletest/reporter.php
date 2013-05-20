@@ -3,7 +3,7 @@
  *  base include file for SimpleTest
  *  @package    SimpleTest
  *  @subpackage UnitTester
- *  @version    $Id: reporter.php 1702 2008-03-25 00:08:04Z lastcraft $
+ *  @version    $Id$
  */
 
 /**#@+

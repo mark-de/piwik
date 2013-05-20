@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Id: Oracle.php 6109 2012-03-24 11:49:29Z Ancud-IT GmbH$
+ * @version $Id$
  */
 class Piwik_Db_Statement_Oracle extends Zend_Db_Statement_Oracle
 {
