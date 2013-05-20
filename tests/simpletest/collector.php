@@ -6,7 +6,6 @@
  * @author Travis Swicegood <development@domain51.com>
  * @package SimpleTest
  * @subpackage UnitTester
- * @version $Id$
  */
 
 /**

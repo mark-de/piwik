@@ -3,7 +3,6 @@
  *  base include file for eclipse plugin  
  *  @package    SimpleTest
  *  @subpackage Eclipse
- *  @version    $Id$
  */
 /**#@+
  * simpletest include files

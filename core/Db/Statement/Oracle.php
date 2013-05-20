@@ -1,7 +1,6 @@
 <?php
 
 /**
- * @version $Id$
  */
 class Piwik_Db_Statement_Oracle extends Zend_Db_Statement_Oracle
 {

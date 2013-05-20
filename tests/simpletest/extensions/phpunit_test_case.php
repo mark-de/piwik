@@ -3,8 +3,7 @@
      *	adapter for SimpleTest to use PHPUnit test cases
      *	@package	SimpleTest
      *	@subpackage Extensions
-     *	@version	$Id$
-     */
+         */
     
     /**#@+
      * include SimpleTest files

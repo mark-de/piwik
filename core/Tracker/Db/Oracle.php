@@ -7,7 +7,6 @@
 
 /**
  * Description of Oracle
- *@version $Id$
  * @author Ancud-IT GmbH
  */
 class Piwik_Tracker_Db_Oracle extends Piwik_Tracker_Db
